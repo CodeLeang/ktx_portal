@@ -1,0 +1,754 @@
+{% extends "base.html" %}
+{% block title %}Phòng — Quản lý KTX{% endblock %}
+{% block page_title %}Quản lý phòng{% endblock %}
+
+{% block content %}
+
+<style>
+.filter-pills { display: flex; gap: 8px; }
+.filter-pill { border: 1px solid var(--border); background: #fff; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; color: var(--navy); cursor: pointer; transition: all .15s ease; display: inline-flex; align-items: center; gap: 6px; }
+.filter-pill:hover { background: #f8fafc; border-color: #94a3c4; }
+.filter-pill.active[data-filter="all"] { background: var(--navy); color: #fff; border-color: var(--navy); }
+.filter-pill.active[data-filter="available"] { background: #e8f7ee; color: #157a3a; border-color: #c9ecd5; }
+.filter-pill.active[data-filter="full"] { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+
+.room-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(185px,1fr)); gap:16px; }
+.room-card { background:#fff; border:1.5px solid var(--border); border-radius:16px; padding:16px 14px; cursor:pointer; transition: border-color .2s, box-shadow .2s, transform .15s; }
+.room-card:hover { border-color:#94a3c4; box-shadow:0 6px 20px -4px rgba(15,27,61,.08); transform:translateY(-2px); }
+.room-card.active { border-color:var(--primary); box-shadow: 0 10px 25px -5px rgba(44,74,138,.15), 0 0 0 3px rgba(44,74,138,.1); transform:translateY(-2px); }
+.bed-dot { width:18px; height:18px; border-radius:4px; flex-shrink:0; transition: background-color .15s; }
+.sv-row { border:1px solid var(--border); border-radius:12px; padding:12px 14px; margin-bottom:10px; background:#fff; display:flex; align-items:center; gap:12px; cursor:pointer; transition: all 0.15s ease; }
+.sv-row:hover { background: #f8fafc; border-color: #94a3c4; }
+.sv-avatar { width:40px; height:40px; border-radius:50%; flex-shrink:0; display:grid; place-items:center; font-weight:800; font-size:13px; }
+.slot-empty { border:1.5px dashed var(--border); border-radius:12px; padding:12px 14px; margin-bottom:10px; background:#fafbff; display:flex; align-items:center; gap:12px; }
+
+.detail-panel { width:340px; flex-shrink:0; position:sticky; top:20px; margin-top:46px; max-height:calc(100vh - 90px); overflow-y:auto; }
+.detail-panel::-webkit-scrollbar { width: 0px; background: transparent; }
+
+.detail-panel .panel-header { padding: 10px 14px !important; }
+.detail-panel .panel-header .room-title { font-size: 17px !important; }
+.detail-panel .panel-header .room-meta { font-size: 10px !important; }
+.detail-panel .panel-header .stat-box { padding: 4px 6px !important; }
+.detail-panel .panel-header .stat-number { font-size: 14px !important; }
+.detail-panel .panel-header .stat-label { font-size: 8px !important; margin-top: 1px !important; }
+
+#rd-add-row { padding: 0 12px 8px !important; }
+#rd-btn-show-assign { padding: 6px 10px !important; font-size: 11px !important; }
+#rd-assign-form-container { padding: 8px 10px !important; }
+
+#rd-available-students { margin-top: 8px; border-top: 1px solid #e5e7eb; padding-top: 8px; }
+#rd-available-students .sv-row { padding: 6px 10px; margin-bottom: 4px; border-radius: 8px; }
+
+/* Student detail modal - original large size + avatar actions */
+.modal-student-detail .modal-content { border-radius: 16px; }
+.modal-student-detail .detail-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.modal-student-detail .detail-value { font-size: 14px; font-weight: 500; color: #1f2937; }
+.sd-avatar-wrap { width: 120px; height: 120px; margin: 0 auto 12px; border-radius: 50%; overflow: hidden; border: 2px solid var(--border); background: #f8fafc; cursor: pointer; position: relative; }
+.sd-avatar-wrap img { width: 100%; height: 100%; object-fit: cover; }
+.sd-avatar-wrap .placeholder { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; font-size: 40px; font-weight: 700; color: #94a3b8; background: #f8fafc; }
+.avatar-upload-btn { font-size: 11px; padding: 2px 12px; border-radius: 30px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: #fff; cursor: pointer; transition: 0.15s; display: inline-block; }
+.avatar-upload-btn:hover { background: rgba(255,255,255,0.3); }
+</style>
+
+{# Top Utilities Bar #}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:14px">
+  <div style="display:flex;align-items:center;gap:16px">
+    <div class="filter-pills">
+      <div class="filter-pill active" data-filter="all">Tất cả <span style="opacity:.6; font-size:11px">({{ rooms|length }})</span></div>
+      <div class="filter-pill" data-filter="available">Còn chỗ</div>
+      <div class="filter-pill" data-filter="full">Đầy phòng</div>
+    </div>
+    <div style="position:relative; width:220px">
+      <i class="bi bi-search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:13px"></i>
+      <input type="text" id="roomSearch" placeholder="Tìm mã phòng..." style="width:100%; padding:6px 12px 6px 34px; font-size:13px; border-radius:20px; border:1px solid var(--border); outline:none">
+    </div>
+  </div>
+  <button class="btn btn-sm" style="background:var(--navy);color:#fff;font-weight:600;border:none;border-radius:10px;padding:8px 16px;display:flex;align-items:center;gap:6px" data-bs-toggle="modal" data-bs-target="#modalAddRoom">
+    <i class="bi bi-plus-lg"></i> Thêm phòng
+  </button>
+</div>
+
+{# Main layout #}
+<div style="display:flex;gap:20px;align-items:flex-start">
+
+  {# LEFT — room cards #}
+  <div style="flex:1;min-width:0" id="roomsContainer">
+    {% set buildings = rooms | map(attribute='building') | unique | list %}
+    {% for bld in buildings %}
+    <div class="building-section" data-building="{{ bld }}" style="margin-bottom:28px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <div style="width:32px;height:32px;border-radius:8px;background:#e8f0fe;display:grid;place-items:center">
+          <i class="bi bi-building" style="color:#1a56db;font-size:14px"></i>
+        </div>
+        <div>
+          <div style="font-weight:700;font-size:15px;color:var(--navy)">Tòa {{ bld }}</div>
+          <div style="font-size:12px;color:var(--muted)">{{ rooms | selectattr('building','equalto',bld) | list | length }} phòng</div>
+        </div>
+      </div>
+      <div class="room-grid">
+        {% for r in rooms if r.building == bld %}
+        {% set occ = r.occupants | int %}
+        {% set cap = r.capacity  | int %}
+        <div id="card-{{ r.id }}" class="room-card" data-code="{{ r.code | lower }}" data-status="{% if occ >= cap %}full{% else %}available{% endif %}" onclick="selectRoom({{ r.id }})">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+            <div style="font-size:15px;font-weight:800;color:var(--navy)">{{ r.code }}</div>
+            <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;
+              {% if occ >= cap %}background:#fee2e2;color:#b91c1c;border:1px solid #fecaca
+              {% elif occ == 0 %}background:#f6f8fc;color:var(--muted);border:1px solid var(--border)
+              {% else %}background:#e8f7ee;color:#157a3a;border:1px solid #c9ecd5{% endif %}">
+              {% if occ >= cap %}Đầy{% elif occ == 0 %}Trống{% else %}{{ cap-occ }} chỗ{% endif %}
+            </span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Tầng {{ r.floor }} · {{ r.room_type }}</div>
+          <div style="display:flex;gap:5px;margin-bottom:10px">
+            {% for sv in r.students %}
+            <div class="bed-dot" style="background:var(--navy)" title="{{ sv.full_name }}"></div>
+            {% endfor %}
+            {% for _ in range(cap - r.students|length) %}
+            <div class="bed-dot" style="border:1.5px dashed var(--border);background:transparent"></div>
+            {% endfor %}
+          </div>
+          <div style="border-top:1px solid #f0f2f7;padding-top:8px; display:flex; justify-content:space-between; align-items:center">
+            <span style="font-size:11px; color:var(--muted)">Đã ở: <strong>{{ occ }}/{{ cap }}</strong></span>
+            <i class="bi bi-chevron-right" style="font-size:11px; color:var(--border)"></i>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# RIGHT — detail panel #}
+  <div id="right-col" class="detail-panel" style="display:none">
+    <div style="background:#fff;border:1.5px solid var(--border);border-radius:18px;overflow:hidden;box-shadow:0 12px 40px -12px rgba(15,27,61,.12)">
+
+      {# Panel header #}
+      <div class="panel-header" style="background:linear-gradient(135deg,#0f1b3d,#1e315f);color:#fff">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px">
+          <div>
+            <div class="room-title" style="font-size:17px;font-weight:800" id="rd-title">—</div>
+            <div class="room-meta" id="rd-meta" style="font-size:10px;color:rgba(255,255,255,.8);margin-top:1px"></div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button onclick="openEditRoom()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:6px;padding:3px 8px;font-size:10px;font-weight:600;cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,.2)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">
+              <i class="bi bi-pencil-fill" style="font-size:9px;margin-right:3px"></i>Sửa
+            </button>
+            <button onclick="closeDetail()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:6px;padding:2px 6px;cursor:pointer;font-size:16px;line-height:1;display:flex;align-items:center;height:22px;transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,.2)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">
+              ×
+            </button>
+          </div>
+        </div>
+        <div id="rd-stats" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px"></div>
+      </div>
+
+      {# Beds (current occupants) #}
+      <div style="padding:14px" id="rd-beds"></div>
+
+      {# Available (unassigned) students #}
+      <div id="rd-available-students" style="display:none; padding:0 14px 6px 14px;">
+        <div style="font-size: 12px; font-weight: 600; color: var(--navy); margin-bottom: 6px;">
+          <i class="bi bi-person-plus"></i> Sinh viên chưa có phòng
+        </div>
+        <div style="margin-bottom: 6px;">
+          <select id="rd-year-filter" onchange="filterAvailableStudents()" style="font-size: 11px; padding: 2px 6px; border-radius: 6px; border: 1px solid #d1d5db; background: #fff;">
+            <option value="all">Tất cả năm</option>
+            <option value="1">Năm 1</option>
+            <option value="2">Năm 2</option>
+            <option value="3">Năm 3</option>
+            <option value="4">Năm 4</option>
+          </select>
+        </div>
+        <div id="rd-available-list"></div>
+      </div>
+
+      {# Collapsible Assign Row #}
+      <div id="rd-add-row" style="display:none;padding:0 12px 8px">
+        <button id="rd-btn-show-assign" onclick="showAssignForm()" style="width:100%;background:#f8fafc;border:1.5px dashed var(--border);color:var(--navy);font-weight:700;font-size:11px;padding:6px 10px;border-radius:10px;cursor:pointer;transition:all .15s">
+          <i class="bi bi-plus-circle me-1"></i>Thêm sinh viên vào phòng
+        </button>
+        <div id="rd-assign-form-container" style="display:none;background:#f4f7fe;border:1.5px dashed #adc0e6;border-radius:12px;padding:8px 10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <div style="font-size:11px;font-weight:700;color:var(--navy)"><i class="bi bi-person-plus me-1"></i>Phân phòng</div>
+            <i class="bi bi-x-circle-fill" style="cursor:pointer;color:#94a3c4;font-size:14px" onclick="hideAssignForm()"></i>
+          </div>
+          <form method="post" action="{{ url_for('admin.assign') }}" style="display:flex;flex-direction:column;gap:6px">
+            <input type="hidden" name="room_id" id="rd-assign-room-id">
+            <select name="student_id" class="form-select form-select-sm" style="font-size:12px;border-radius:8px" required>
+              <option value="">— Chọn sinh viên —</option>
+              {% for s in all_students %}
+              <option value="{{ s.id }}">
+                {{ s.full_name }} · {{ s.student_code }}
+                {% if s.room_code %} (Phòng {{ s.room_code }}){% endif %}
+              </option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-sm" style="width:100%;background:var(--navy);color:#fff;border:none;border-radius:8px;font-weight:600;padding:5px;font-size:12px">Xác nhận</button>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{# ─── MODAL: Student Detail (original large size + avatar actions) ─── #}
+<div class="modal fade modal-student-detail" id="modalStudentDetail" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#0f1b3d;color:#fff;border-radius:16px 16px 0 0;padding:16px 22px;">
+        <h5 class="modal-title" id="studentDetailTitle" style="font-weight:700;font-size:17px;">
+          <i class="bi bi-person-fill me-2"></i><span id="sd-name">—</span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:22px;">
+        <div class="row g-3">
+          <div class="col-md-3 text-center">
+            <!-- Avatar with click to preview & upload -->
+            <div class="sd-avatar-wrap" id="sd-avatar-click" onclick="previewAvatarFromModal()">
+              <img id="sd-avatar-img" src="" style="display:none;">
+              <span id="sd-avatar-placeholder" class="placeholder">?</span>
+            </div>
+            <div style="margin-bottom: 8px;">
+              <button class="avatar-upload-btn" onclick="document.getElementById('sd-avatar-file').click()">
+                <i class="bi bi-camera"></i> Đổi ảnh
+              </button>
+              <form id="sd-avatar-form" method="post" style="display:none;">
+                <input type="file" id="sd-avatar-file" name="avatar" accept="image/*" onchange="uploadAvatarFromModal()">
+              </form>
+            </div>
+            <div><span class="detail-label">Mã số</span><br><span class="detail-value" id="sd-code">—</span></div>
+            <div><span class="detail-label">Hộ chiếu</span><br><span class="detail-value" id="sd-passport">—</span></div>
+          </div>
+          <div class="col-md-9">
+            <div class="row g-2">
+              <div class="col-6"><span class="detail-label">Họ tên</span><br><span class="detail-value" id="sd-fullname">—</span></div>
+              <div class="col-6"><span class="detail-label">Ngày sinh</span><br><span class="detail-value" id="sd-dob">—</span></div>
+              <div class="col-6"><span class="detail-label">Giới tính</span><br><span class="detail-value" id="sd-gender">—</span></div>
+              <div class="col-6"><span class="detail-label">Quốc tịch</span><br><span class="detail-value" id="sd-nationality">—</span></div>
+              <div class="col-6"><span class="detail-label">Email</span><br><span class="detail-value" id="sd-email">—</span></div>
+              <div class="col-6"><span class="detail-label">Số điện thoại</span><br><span class="detail-value" id="sd-phone">—</span></div>
+              <div class="col-6"><span class="detail-label">Năm học</span><br><span class="detail-value" id="sd-year">—</span></div>
+              <div class="col-6"><span class="detail-label">Học kỳ</span><br><span class="detail-value" id="sd-semester">—</span></div>
+              <div class="col-6"><span class="detail-label">Học bổng (₫/tháng)</span><br><span class="detail-value" id="sd-scholarship">—</span></div>
+              <div class="col-6"><span class="detail-label">Trạng thái</span><br><span class="detail-value" id="sd-active">—</span></div>
+              <div class="col-6"><span class="detail-label">Hộ chiếu hết hạn</span><br><span class="detail-value" id="sd-pp-exp">—</span></div>
+              <div class="col-6"><span class="detail-label">Visa hết hạn</span><br><span class="detail-value" id="sd-visa-exp">—</span></div>
+              <div class="col-12"><span class="detail-label">Địa chỉ nhà</span><br><span class="detail-value" id="sd-address">—</span></div>
+              <div class="col-12"><span class="detail-label">Liên hệ khẩn cấp</span><br><span class="detail-value" id="sd-emergency">—</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid #f0f2f7;padding:12px 22px;">
+        <button type="button" class="btn btn-sm" style="background:#f1f5fb;border:1px solid var(--border);color:var(--navy);font-weight:600" data-bs-dismiss="modal">Đóng</button>
+        <a href="#" id="sd-edit-link" class="btn btn-sm" style="background:var(--navy);border-color:var(--navy);color:#fff;font-weight:600">
+          <i class="bi bi-pencil-fill me-1"></i>Chỉnh sửa
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ─── IMAGE PREVIEW MODAL (full screen) ─── #}
+<div class="modal fade" id="modalImagePreview" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 600px;">
+    <div class="modal-content" style="border-radius: 16px; background: transparent; border: none; box-shadow: none;">
+      <div style="position: relative;">
+        <button type="button" class="btn-close btn-close-white" style="position: absolute; top: 10px; right: 10px; z-index: 10; background: rgba(0,0,0,0.5); border-radius: 50%; padding: 8px;" data-bs-dismiss="modal"></button>
+        <img id="previewImage" src="" alt="Avatar preview" style="width: 100%; height: auto; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ─── MODAL: Add Room ─── #}
+<div class="modal fade" id="modalAddRoom" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background: #0a1628; color: #fff; border-radius: 16px 16px 0 0;">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-plus-circle me-2"></i>Thêm phòng mới
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('admin.add_room') }}">
+        <div class="modal-body" style="padding: 20px;">
+          {# If you use Flask-WTF, uncomment the next line #}
+          {# <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> #}
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" style="font-size: 13px;">Mã phòng</label>
+              <input type="text" name="code" class="form-control" placeholder="VD: A101" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" style="font-size: 13px;">Tòa nhà</label>
+              <input type="text" name="building" class="form-control" placeholder="A, B, C..." required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" style="font-size: 13px;">Tầng</label>
+              <input type="number" name="floor" class="form-control" placeholder="1" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" style="font-size: 13px;">Loại phòng</label>
+              <select name="room_type" class="form-select" required>
+                <option value="Thường">Thường</option>
+                <option value="Học bổng">Học bổng</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold" style="font-size: 13px;">Sức chứa</label>
+              <input type="number" name="capacity" class="form-control" placeholder="4" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold" style="font-size: 13px;">Định mức điện (kWh)</label>
+              <input type="number" name="elec_quota" class="form-control" placeholder="50" step="0.1">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold" style="font-size: 13px;">Định mức nước (m³)</label>
+              <input type="number" name="water_quota" class="form-control" placeholder="6" step="0.1">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top: 1px solid #f0f2f7;">
+          <button type="button" class="btn btn-sm" style="background:#f1f5fb; border:1px solid var(--border); color:var(--navy); font-weight:600;" data-bs-dismiss="modal">Hủy</button>
+          <button type="submit" class="btn btn-sm" style="background:var(--navy); color:#fff; border:none; font-weight:600;">
+            <i class="bi bi-check2 me-1"></i>Thêm phòng
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ─── MODAL: Edit Room ─── #}
+<div class="modal fade" id="modalEditRoom" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background: #0a1628; color: #fff; border-radius: 16px 16px 0 0;">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-pencil-square me-2"></i>Chỉnh sửa phòng
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" id="editRoomForm" action="">
+        <div class="modal-body" style="padding: 20px;">
+          {# If you use Flask-WTF, uncomment the next line #}
+          {# <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> #}
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" style="font-size: 13px;">Mã phòng</label>
+              <input type="text" name="code" id="edit-code" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" style="font-size: 13px;">Tòa nhà</label>
+              <input type="text" name="building" id="edit-building" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" style="font-size: 13px;">Tầng</label>
+              <input type="number" name="floor" id="edit-floor" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" style="font-size: 13px;">Loại phòng</label>
+              <select name="room_type" id="edit-room_type" class="form-select" required>
+                <option value="Thường">Thường</option>
+                <option value="Học bổng">Học bổng</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold" style="font-size: 13px;">Sức chứa</label>
+              <input type="number" name="capacity" id="edit-capacity" class="form-control" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold" style="font-size: 13px;">Định mức điện (kWh)</label>
+              <input type="number" name="elec_quota" id="edit-elec_quota" class="form-control" step="0.1">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold" style="font-size: 13px;">Định mức nước (m³)</label>
+              <input type="number" name="water_quota" id="edit-water_quota" class="form-control" step="0.1">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top: 1px solid #f0f2f7;">
+          <button type="button" class="btn btn-sm" style="background:#f1f5fb; border:1px solid var(--border); color:var(--navy); font-weight:600;" data-bs-dismiss="modal">Hủy</button>
+          <button type="submit" class="btn btn-sm" style="background:var(--navy); color:#fff; border:none; font-weight:600;">
+            <i class="bi bi-check2 me-1"></i>Cập nhật
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# Pass all students to JavaScript #}
+<script>
+  var allStudents = {{ all_students | tojson | safe }};
+</script>
+
+{# Room data for JS #}
+<script id="rooms-json" type="application/json">
+[{% for r in rooms %}{
+  "id":{{ r.id }},
+  "code":{{ r.code|tojson }},
+  "bld":{{ r.building|tojson }},
+  "floor":{{ r.floor }},
+  "type":{{ r.room_type|tojson }},
+  "cap":{{ r.capacity }},
+  "occ":{{ r.occupants }},
+  "elec":{{ r.elec_quota }},
+  "water":{{ r.water_quota }},
+  "students":[{% for sv in r.students %}{
+    "id":{{ sv.id }},
+    "code":{{ sv.student_code|tojson }},
+    "name":{{ sv.full_name|tojson }},
+    "email":{{ (sv.email or '')|tojson }},
+    "phone":{{ (sv.phone or '')|tojson }},
+    "passport":{{ (sv.passport_number or '')|tojson }},
+    "dob":{{ (sv.date_of_birth or '')|tojson }},
+    "gender":{{ (sv.gender or '')|tojson }},
+    "nationality":{{ (sv.nationality or '')|tojson }},
+    "semester":{{ (sv.semester or '')|tojson }},
+    "scholarship":{{ sv.scholarship_amt|default(0) }},
+    "year":{{ sv.study_year|default(1) }},
+    "active":{{ 'true' if sv.is_active|default(true) else 'false' }},
+    "pp_expiry":{{ (sv.passport_expiry or '')|tojson }},
+    "visa_expiry":{{ (sv.visa_expiry or '')|tojson }},
+    "address":{{ (sv.home_address or '')|tojson }},
+    "emergency":{{ (sv.emergency_contact or '')|tojson }},
+    "avatar":{{ (sv.avatar_url or '')|tojson }}
+  }{% if not loop.last %},{% endif %}{% endfor %}]
+}{% if not loop.last %},{% endif %}{% endfor %}]
+</script>
+
+<script>
+var rooms = JSON.parse(document.getElementById('rooms-json').textContent);
+var activeRoom = null;
+var currentStudentId = null; // store for avatar upload
+
+function ini(name) {
+  var p = (name||'').trim().split(' ');
+  return p.length >= 2 ? (p[p.length-2][0]+p[p.length-1][0]).toUpperCase() : (p[0]||'??').substring(0,2).toUpperCase();
+}
+
+function genderPill(gender) {
+  if (!gender) return '';
+  var bg = '#f1f5f9', col = '#475569';
+  if (gender === 'Nam') { bg = '#dbeafe'; col = '#1e40af'; }
+  else if (gender === 'Nữ') { bg = '#fce7f3'; col = '#9d174d'; }
+  return '<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:8px;background:'+bg+';color:'+col+';flex-shrink:0">'+gender+'</span>';
+}
+
+// Filter available students by year
+function filterAvailableStudents() {
+  var filterVal = document.getElementById('rd-year-filter').value;
+  var items = document.querySelectorAll('#rd-available-list .sv-row');
+  items.forEach(item => {
+    var yearSpan = item.querySelector('span[style*="Năm"]');
+    if (!yearSpan) return;
+    var year = yearSpan.textContent.replace('Năm ', '');
+    if (filterVal === 'all' || year === filterVal) {
+      item.style.display = 'flex';
+    } else {
+      item.style.display = 'none';
+    }
+  });
+}
+
+// ── Full-screen preview ──
+function previewAvatarFromModal() {
+  var img = document.getElementById('sd-avatar-img');
+  if (img.style.display !== 'none' && img.src) {
+    document.getElementById('previewImage').src = img.src;
+    document.getElementById('previewImage').alt = 'Avatar';
+    new bootstrap.Modal(document.getElementById('modalImagePreview')).show();
+  }
+}
+
+// ── Upload avatar from modal ──
+function uploadAvatarFromModal() {
+  var fileInput = document.getElementById('sd-avatar-file');
+  if (!fileInput.files || fileInput.files.length === 0) return;
+  var fd = new FormData();
+  fd.append('avatar', fileInput.files[0]);
+  var studentId = currentStudentId;
+  if (!studentId) return;
+  fetch('/admin/students/avatar/' + studentId, {
+    method: 'POST',
+    body: fd,
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  }).then(response => response.json()).then(data => {
+    if (data.success) {
+      var img = document.getElementById('sd-avatar-img');
+      var placeholder = document.getElementById('sd-avatar-placeholder');
+      img.src = data.avatar_url + '?' + new Date().getTime();
+      img.style.display = 'block';
+      placeholder.style.display = 'none';
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      alert('Không thể cập nhật ảnh.');
+    }
+  }).catch(() => alert('Lỗi kết nối.'));
+}
+
+// ── Show student detail modal ──
+function showStudentDetail(studentId) {
+  var student = null;
+  for (var i = 0; i < rooms.length; i++) {
+    for (var j = 0; j < rooms[i].students.length; j++) {
+      if (rooms[i].students[j].id === studentId) {
+        student = rooms[i].students[j];
+        break;
+      }
+    }
+    if (student) break;
+  }
+  if (!student) {
+    student = allStudents.find(function(s) { return s.id === studentId; });
+  }
+  if (!student) return;
+
+  currentStudentId = student.id;
+
+  document.getElementById('sd-name').textContent = student.name;
+  document.getElementById('sd-fullname').textContent = student.name;
+  document.getElementById('sd-code').textContent = student.code || '—';
+  document.getElementById('sd-passport').textContent = student.passport || '—';
+  document.getElementById('sd-dob').textContent = student.dob ? new Date(student.dob).toLocaleDateString('vi-VN') : '—';
+  document.getElementById('sd-gender').textContent = student.gender || '—';
+  document.getElementById('sd-nationality').textContent = student.nationality || '—';
+  document.getElementById('sd-email').textContent = student.email || '—';
+  document.getElementById('sd-phone').textContent = student.phone || '—';
+  document.getElementById('sd-year').textContent = student.year ? 'Năm ' + student.year : '—';
+  document.getElementById('sd-semester').textContent = student.semester || '—';
+  document.getElementById('sd-scholarship').textContent = student.scholarship ? student.scholarship.toLocaleString() + ' ₫' : '0 ₫';
+  document.getElementById('sd-active').textContent = student.active ? '✅ Đang ở' : '🔴 Đã tốt nghiệp';
+  document.getElementById('sd-pp-exp').textContent = student.pp_expiry ? new Date(student.pp_expiry).toLocaleDateString('vi-VN') : '—';
+  document.getElementById('sd-visa-exp').textContent = student.visa_expiry ? new Date(student.visa_expiry).toLocaleDateString('vi-VN') : '—';
+  document.getElementById('sd-address').textContent = student.address || '—';
+  document.getElementById('sd-emergency').textContent = student.emergency || '—';
+
+  // Avatar
+  var img = document.getElementById('sd-avatar-img');
+  var placeholder = document.getElementById('sd-avatar-placeholder');
+  if (student.avatar) {
+    img.src = student.avatar;
+    img.style.display = 'block';
+    placeholder.style.display = 'none';
+  } else {
+    img.style.display = 'none';
+    placeholder.style.display = 'flex';
+    placeholder.textContent = ini(student.name);
+  }
+
+  document.getElementById('sd-edit-link').href = '/admin/students';
+  new bootstrap.Modal(document.getElementById('modalStudentDetail')).show();
+}
+
+// ── Global Filtering ──
+document.addEventListener("DOMContentLoaded", function() {
+  const pills = document.querySelectorAll('.filter-pill');
+  const searchInput = document.getElementById('roomSearch');
+  
+  function applyFilters() {
+    const activeFilter = document.querySelector('.filter-pill.active').getAttribute('data-filter');
+    const searchVal = searchInput.value.toLowerCase().trim();
+    
+    document.querySelectorAll('.room-card').forEach(card => {
+      const status = card.getAttribute('data-status');
+      const code = card.getAttribute('data-code');
+      const matchesFilter = (activeFilter === 'all') || (activeFilter === status);
+      const matchesSearch = code.includes(searchVal);
+      if(matchesFilter && matchesSearch) {
+        card.style.display = 'block';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+
+    document.querySelectorAll('.building-section').forEach(section => {
+      const visibleCards = section.querySelectorAll('.room-card[style="display: block;"]').length;
+      const totalCards = section.querySelectorAll('.room-card').length;
+      const hiddenCards = section.querySelectorAll('.room-card[style="display: none;"]').length;
+      if(hiddenCards === totalCards) { section.style.display = 'none'; } 
+      else { section.style.display = 'block'; }
+    });
+  }
+
+  pills.forEach(pill => {
+    pill.addEventListener('click', function() {
+      pills.forEach(p => p.classList.remove('active'));
+      this.classList.add('active');
+      applyFilters();
+    });
+  });
+
+  searchInput.addEventListener('input', applyFilters);
+});
+
+// ── Assign form toggles ──
+window.showAssignForm = function() {
+  document.getElementById('rd-btn-show-assign').style.display = 'none';
+  document.getElementById('rd-assign-form-container').style.display = 'block';
+};
+window.hideAssignForm = function() {
+  document.getElementById('rd-btn-show-assign').style.display = 'block';
+  document.getElementById('rd-assign-form-container').style.display = 'none';
+};
+
+// ── Select Room ──
+window.selectRoom = function(id) {
+  if (activeRoom === id) { closeDetail(); return; }
+  activeRoom = id;
+  var r = rooms.find(function(x){ return x.id === id; });
+  if (!r) return;
+
+  document.querySelectorAll('[id^="card-"]').forEach(function(c){ c.classList.remove('active'); });
+  var card = document.getElementById('card-'+id);
+  if (card) card.classList.add('active');
+
+  document.getElementById('rd-title').textContent = 'Phòng ' + r.code;
+  document.getElementById('rd-meta').textContent = 'Tòa ' + r.bld + ' · Tầng ' + r.floor + ' · ' + r.type;
+
+  var occColor = r.occ >= r.cap ? '#f87171' : r.occ === 0 ? 'rgba(255,255,255,.4)' : '#4ade80';
+  document.getElementById('rd-stats').innerHTML =
+    '<div class="stat-box" style="background:rgba(255,255,255,.1);border-radius:6px;padding:4px 6px;text-align:center">'+
+      '<div class="stat-number" style="font-size:14px;font-weight:800;color:'+occColor+'">'+r.occ+'/'+r.cap+'</div>'+
+      '<div class="stat-label" style="font-size:8px;color:rgba(255,255,255,.6);font-weight:600;margin-top:1px">SINH VIÊN</div>'+
+    '</div>'+
+    '<div class="stat-box" style="background:rgba(255,255,255,.1);border-radius:6px;padding:4px 6px;text-align:center">'+
+      '<div class="stat-number" style="font-size:14px;font-weight:800;color:#fbbf24">'+r.elec+'<span style="font-size:9px"> kWh</span></div>'+
+      '<div class="stat-label" style="font-size:8px;color:rgba(255,255,255,.6);font-weight:600;margin-top:1px">ĐỊNH MỨC ĐIỆN</div>'+
+    '</div>'+
+    '<div class="stat-box" style="background:rgba(255,255,255,.1);border-radius:6px;padding:4px 6px;text-align:center">'+
+      '<div class="stat-number" style="font-size:14px;font-weight:800;color:#7dd3fc">'+r.water+'<span style="font-size:9px"> m³</span></div>'+
+      '<div class="stat-label" style="font-size:8px;color:rgba(255,255,255,.6);font-weight:600;margin-top:1px">ĐỊNH MỨC NƯỚC</div>'+
+    '</div>';
+
+  // ---- Render current occupants (clickable) ----
+  var beds = '';
+  r.students.forEach(function(sv, idx) {
+    var avBg = sv.active === false ? '#fee2e2' : 'var(--navy)';
+    var avCol = sv.active === false ? '#b91c1c' : '#fff';
+    var yearLabel = sv.active === false
+      ? '<span style="display:inline-flex;align-items:center;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;background:#fee2e2;color:#b91c1c;">Tốt nghiệp</span>'
+      : '<span style="display:inline-flex;align-items:center;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;background:'+(sv.year>=4?'#fef3c7':'#e8f7ee')+';color:'+(sv.year>=4?'#92400e':'#157a3a')+'">Năm '+sv.year+'</span>';
+    
+    beds +=
+    '<div class="sv-row" onclick="showStudentDetail('+sv.id+')" style="'+(sv.active===false?'border-color:#fecaca;background:#fff8f8':'')+'">'+
+      '<div style="width:20px;height:20px;border-radius:50%;background:#f1f5fb;color:var(--muted);display:grid;place-items:center;font-size:10px;font-weight:700;flex-shrink:0">'+(idx+1)+'</div>'+
+      (sv.avatar
+        ? '<img src="'+sv.avatar+'" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid #e2e8f0">'
+        : '<div class="sv-avatar" style="width:34px;height:34px;font-size:12px;background:'+avBg+';color:'+avCol+'">'+ini(sv.name)+'</div>'
+      )+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px">'+
+          '<span style="font-size:13px;font-weight:700;color:var(--navy)">'+sv.name+'</span>'+
+          genderPill(sv.gender)+
+          yearLabel+
+          '<i class="bi bi-info-circle" style="color:#94a3c4;font-size:12px;margin-left:auto;" title="Xem chi tiết"></i>'+
+        '</div>'+
+        '<div style="font-size:11px;color:var(--muted)">'+sv.code+'</div>'+
+      '</div>'+
+      '<form method="post" action="/admin/rooms/remove-student" onsubmit="return confirm(\'Xóa '+sv.name+' khỏi phòng?\')" onclick="event.stopPropagation();">'+
+        '<input type="hidden" name="student_id" value="'+sv.id+'">'+
+        '<button type="submit" style="background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">'+
+          '<i class="bi bi-box-arrow-right"></i>'+
+        '</button>'+
+      '</form>'+
+    '</div>';
+  });
+
+  for (var e = r.students.length; e < r.cap; e++) {
+    beds +=
+    '<div class="slot-empty">'+
+      '<div style="width:20px;height:20px;border-radius:50%;background:#f1f5fb;color:var(--muted);display:grid;place-items:center;font-size:10px;font-weight:700;flex-shrink:0">'+(e+1)+'</div>'+
+      '<span style="font-size:12px;color:var(--muted)">Ô trống</span>'+
+    '</div>';
+  }
+  document.getElementById('rd-beds').innerHTML = beds;
+
+  // ---- Render available (unassigned) students ----
+  var availSection = document.getElementById('rd-available-students');
+  var availList = document.getElementById('rd-available-list');
+  var available = allStudents.filter(function(s) { return !s.room_code; });
+  if (available.length === 0) {
+    availSection.style.display = 'none';
+  } else {
+    availSection.style.display = 'block';
+    var availHtml = '';
+    available.forEach(function(s) {
+      availHtml += `
+      <div class="sv-row" style="padding: 6px 10px; margin-bottom: 4px; border-radius: 8px;">
+        <div class="sv-avatar" style="width: 28px; height: 28px; font-size: 10px; background: #1e3a8a; color: #fff;">${ini(s.full_name)}</div>
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; align-items:center; gap: 6px; flex-wrap:wrap;">
+            <span style="font-size: 13px; font-weight: 600; color: #111827;">${s.full_name}</span>
+            ${genderPill(s.gender)}
+            <span style="font-size: 10px; font-weight: 600; background: #e5e7eb; color: #1f2937; padding: 1px 8px; border-radius: 30px;">Năm ${s.study_year || 1}</span>
+          </div>
+          <div style="font-size: 11px; color: #6b7280;">${s.student_code}</div>
+        </div>
+        <form method="post" action="{{ url_for('admin.assign') }}" style="margin:0;" onclick="event.stopPropagation();">
+          <input type="hidden" name="student_id" value="${s.id}">
+          <input type="hidden" name="room_id" value="${r.id}">
+          <button type="submit" style="background: #1e3a8a; color: #fff; border: none; border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer;">
+            Thêm
+          </button>
+        </form>
+      </div>`;
+    });
+    availList.innerHTML = availHtml;
+    document.getElementById('rd-year-filter').value = 'all';
+    filterAvailableStudents();
+  }
+
+  // ---- Show/hide assign button ----
+  var ar = document.getElementById('rd-add-row');
+  if (r.occ < r.cap) {
+    document.getElementById('rd-assign-room-id').value = r.id;
+    ar.style.display = 'block';
+    hideAssignForm();
+  } else {
+    ar.style.display = 'none';
+  }
+
+  document.getElementById('right-col').style.display = 'block';
+};
+
+window.closeDetail = function() {
+  activeRoom = null;
+  document.getElementById('right-col').style.display = 'none';
+  document.querySelectorAll('[id^="card-"]').forEach(function(c){ c.classList.remove('active'); });
+};
+
+// ── Open Edit Room Modal (populate fields) ──
+window.openEditRoom = function() {
+  if (!activeRoom) return;
+  var r = rooms.find(function(x){ return x.id === activeRoom; });
+  if (!r) return;
+
+  // Fill fields
+  document.getElementById('edit-code').value = r.code;
+  document.getElementById('edit-building').value = r.bld;
+  document.getElementById('edit-floor').value = r.floor;
+  var normalizedType = (r.type || '').toLowerCase().includes('học') && (r.type || '').toLowerCase().includes('bổng')
+    ? 'Học bổng'
+    : 'Thường';
+  document.getElementById('edit-room_type').value = normalizedType;
+  document.getElementById('edit-capacity').value = r.cap;
+  document.getElementById('edit-elec_quota').value = r.elec;
+  document.getElementById('edit-water_quota').value = r.water;
+
+  // Set form action
+  document.getElementById('editRoomForm').action = '/admin/rooms/edit/' + r.id;
+
+  // Show modal
+  var editModal = new bootstrap.Modal(document.getElementById('modalEditRoom'));
+  editModal.show();
+};
+</script>
+
+{% endblock %}

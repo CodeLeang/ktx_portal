@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block page_title %}Hộp thư{% endblock %}
+{% block content %}
+<div class="card-soft">
+  {% for m in messages %}
+    <div class="border-bottom py-3">
+      <div class="d-flex justify-content-between">
+        <div class="fw-semibold"><i class="bi bi-envelope text-primary"></i> {{ m.subject }}</div>
+        <span class="text-muted small">{{ m.created_at.strftime('%d/%m/%Y') }}</span>
+      </div>
+      <div class="text-muted mt-1">{{ m.body }}</div>
+    </div>
+  {% else %}
+    <div class="text-muted">Hộp thư trống.</div>
+  {% endfor %}
+</div>
+{% endblock %}

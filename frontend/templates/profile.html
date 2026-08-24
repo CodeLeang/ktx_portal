@@ -1,0 +1,427 @@
+{% extends "base.html" %}
+{% block title %}Hồ sơ sinh viên — KTX Portal{% endblock %}
+{% block page_title %}Hồ sơ sinh viên{% endblock %}
+{% block content %}
+
+<style>
+  .profile-avatar-ring {
+    width: 96px; height: 96px; border-radius: 50%;
+    background: linear-gradient(135deg, #0f1b3d, #2c4a8a);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px; font-weight: 800; color: #fff;
+    margin: 0 auto 16px;
+    box-shadow: 0 0 0 4px #fff, 0 0 0 6px #e6eaf2;
+    position: relative;
+  }
+  .profile-avatar-wrap {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+  }
+  .profile-avatar-wrap img {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  }
+  .profile-avatar-wrap .initials {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0f1b3d, #2c4a8a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    border: 3px solid #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  }
+  .profile-badge-dot {
+    position: absolute; bottom: 4px; right: 4px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #22c55e; border: 3px solid #fff;
+  }
+  .info-field {
+    padding: 14px 0; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .info-field:last-child { border-bottom: none; }
+  .info-field-label {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: var(--muted); font-weight: 500; min-width: 160px;
+  }
+  .info-field-label i { font-size: 15px; width: 18px; text-align: center; }
+  .info-field-value { font-size: 14px; font-weight: 600; color: var(--navy); text-align: right; }
+  .perk-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #fff;
+    transition: background .15s;
+  }
+  .perk-item:hover { background: #f8fafc; }
+  .perk-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: grid; place-items: center;
+    font-size: 16px;
+    background: #f1f5f9;
+    color: #475569;
+    flex-shrink: 0;
+  }
+  .perk-title { font-size: 13px; font-weight: 600; color: #1e293b; }
+  .perk-sub { font-size: 12px; color: #6b7280; }
+  .stat-mini {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px; text-align: center;
+  }
+  .stat-mini .val { font-size: 22px; font-weight: 800; color: var(--navy); }
+  .stat-mini .lbl { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin-top: 4px; }
+
+  .info-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 32px;
+  }
+  .info-two-col .info-field.full-width {
+    grid-column: 1 / -1;
+  }
+  @media (max-width: 768px) {
+    .info-two-col {
+      grid-template-columns: 1fr;
+    }
+    .info-two-col .info-field.full-width {
+      grid-column: auto;
+    }
+  }
+
+  /* Upload button on avatar */
+  .avatar-upload-btn {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #2563eb;
+    border: 2px solid #fff;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    color: #fff;
+    font-size: 12px;
+    transition: background .15s;
+  }
+  .avatar-upload-btn:hover { background: #1d4ed8; }
+</style>
+
+<!-- Image preview modal (full screen) -->
+<div class="modal fade" id="modalImagePreview" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 600px;">
+    <div class="modal-content" style="border-radius: 16px; background: transparent; border: none; box-shadow: none;">
+      <div style="position: relative;">
+        <button type="button" class="btn-close btn-close-white" style="position: absolute; top: 10px; right: 10px; z-index: 10; background: rgba(0,0,0,0.5); border-radius: 50%; padding: 8px;" data-bs-dismiss="modal"></button>
+        <img id="previewImage" src="" alt="Avatar preview" style="width: 100%; height: auto; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4" style="max-width:1200px">
+  <!-- LEFT COLUMN: Profile + Perks -->
+  <div class="col-lg-4">
+    <!-- Profile Card -->
+    <div class="card-soft text-center" style="padding: 28px 22px">
+      <div class="profile-avatar-wrap" onclick="previewAvatar()">
+        {% if student.avatar_url %}
+          <img src="{{ student.avatar_url }}" alt="{{ student.full_name }}">
+        {% else %}
+          <div class="initials">
+            {% set parts = student.full_name.split() %}
+            {% if parts|length >= 2 %}{{ parts[-2][0]|upper }}{{ parts[-1][0]|upper }}{% else %}{{ student.full_name[:2]|upper }}{% endif %}
+          </div>
+        {% endif %}
+        <!-- Upload button (does not trigger preview) -->
+        <label for="avatarInput" class="avatar-upload-btn" title="Đổi ảnh đại diện" onclick="event.stopPropagation();">
+          <i class="bi bi-camera-fill"></i>
+        </label>
+      </div>
+      <form id="avatarForm" method="post" action="/upload-avatar" enctype="multipart/form-data" style="display:none">
+        <input type="file" id="avatarInput" name="avatar" accept="image/*" onchange="document.getElementById('avatarForm').submit()">
+      </form>
+      <div style="font-size:19px;font-weight:800;color:var(--navy);letter-spacing:-.01em">{{ student.full_name }}</div>
+      <div style="color:var(--muted);font-size:13px;margin:5px 0 16px;font-weight:500">{{ student.student_code }}</div>
+      {% if student.is_scholarship %}
+      <div style="display:inline-flex;align-items:center;gap:7px;background:var(--navy);color:#fff;padding:6px 16px;border-radius:999px;font-size:12.5px;font-weight:700">
+        <i class="bi bi-award-fill" style="color:#ffd66b"></i>
+        Sinh viên học bổng
+      </div>
+      {% endif %}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px">
+        <div class="stat-mini">
+          <div class="val">₫{{ "{:,.0f}".format(student.scholarship_amt / 1000) }}k</div>
+          <div class="lbl">Học bổng</div>
+        </div>
+        <div class="stat-mini">
+          <div class="val">{{ student.semester.split(' ')[-1] }}</div>
+          <div class="lbl">Học kỳ</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quyền lợi học bổng – clean & minimal -->
+    <div class="card-soft mt-4">
+      <div class="card-title">Quyền lợi học bổng</div>
+      <div style="display:grid;gap:8px">
+        <div class="perk-item">
+          <div class="perk-icon"><i class="bi bi-house-heart-fill"></i></div>
+          <div>
+            <div class="perk-title">Miễn phí phòng ở</div>
+            <div class="perk-sub">100% phí phòng ở</div>
+          </div>
+          <i class="bi bi-check-circle-fill" style="color:#16a34a;font-size:16px;margin-left:auto;flex-shrink:0"></i>
+        </div>
+        <div class="perk-item">
+          <div class="perk-icon"><i class="bi bi-lightning-charge-fill"></i></div>
+          <div>
+            <div class="perk-title">Bao cấp điện</div>
+            <div class="perk-sub">Miễn phí 60 kWh / tháng</div>
+          </div>
+          <i class="bi bi-check-circle-fill" style="color:#16a34a;font-size:16px;margin-left:auto;flex-shrink:0"></i>
+        </div>
+        <div class="perk-item">
+          <div class="perk-icon"><i class="bi bi-droplet-fill"></i></div>
+          <div>
+            <div class="perk-title">Bao cấp nước</div>
+            <div class="perk-sub">Miễn phí 10 m³ / tháng</div>
+          </div>
+          <i class="bi bi-check-circle-fill" style="color:#16a34a;font-size:16px;margin-left:auto;flex-shrink:0"></i>
+        </div>
+        <div class="perk-item">
+          <div class="perk-icon"><i class="bi bi-cash-coin"></i></div>
+          <div>
+            <div class="perk-title">Hỗ trợ sinh hoạt phí</div>
+            <div class="perk-sub">₫{{ "{:,}".format(student.scholarship_amt) }} / tháng</div>
+          </div>
+          <i class="bi bi-check-circle-fill" style="color:#16a34a;font-size:16px;margin-left:auto;flex-shrink:0"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN: Thông tin cá nhân -->
+  <div class="col-lg-8">
+    <div class="card-soft">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div class="card-title" style="margin-bottom:0">Thông tin cá nhân</div>
+        <span style="font-size:11.5px;background:#e8f7ee;color:#157a3a;padding:4px 10px;border-radius:999px;font-weight:600;border:1px solid #c9ecd5"><i class="bi bi-check-circle"></i> Đã xác minh</span>
+      </div>
+      <div style="margin-top:8px">
+        <div class="info-two-col">
+          <div class="info-field">
+            <div class="info-field-label"><i class="bi bi-person"></i> Họ và tên</div>
+            <div class="info-field-value">{{ student.full_name }}</div>
+          </div>
+          <div class="info-field">
+            <div class="info-field-label"><i class="bi bi-hash"></i> Mã số sinh viên</div>
+            <div class="info-field-value" style="font-family:monospace;background:var(--bg);padding:4px 12px;border-radius:6px;border:1px solid var(--border)">{{ student.student_code }}</div>
+          </div>
+          <div class="info-field">
+            <div class="info-field-label"><i class="bi bi-gender-ambiguous"></i> Giới tính</div>
+            <div class="info-field-value">{{ student.gender or '—' }}</div>
+          </div>
+          <div class="info-field">
+            <div class="info-field-label"><i class="bi bi-passport"></i> Số hộ chiếu</div>
+            <div class="info-field-value" style="font-family:monospace;background:var(--bg);padding:4px 12px;border-radius:6px;border:1px solid var(--border)">
+              {{ student.passport_number or '—' }}
+            </div>
+          </div>
+          <div class="info-field">
+            <div class="info-field-label"><i class="bi bi-envelope"></i> Email</div>
+            <div class="info-field-value" style="color:var(--primary)">{{ student.email or '—' }}</div>
+          </div>
+          <div class="info-field">
+            <div class="info-field-label"><i class="bi bi-phone"></i> Số điện thoại</div>
+            <div class="info-field-value">{{ student.phone or '—' }}</div>
+          </div>
+          <div class="info-field">
+            <div class="info-field-label"><i class="bi bi-flag"></i> Quốc tịch</div>
+            <div class="info-field-value">{{ student.nationality or '—' }}</div>
+          </div>
+          <div class="info-field">
+            <div class="info-field-label"><i class="bi bi-calendar3"></i> Học kỳ</div>
+            <div class="info-field-value">{{ student.semester }}</div>
+          </div>
+          <div class="info-field">
+            <div class="info-field-label"><i class="bi bi-mortarboard"></i> Diện học bổng</div>
+            <div class="info-field-value">
+              {% if student.is_scholarship %}
+              <span style="background:#fef3c7;color:#92400e;padding:5px 12px;border-radius:999px;font-size:12.5px;font-weight:700;border:1px solid #fde68a">
+                <i class="bi bi-award-fill" style="color:#b45309"></i> Có
+              </span>
+              {% else %}
+              <span style="color:var(--muted)">Không</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="info-field full-width" style="border-bottom:none">
+            <div class="info-field-label"><i class="bi bi-cash-stack"></i> Học bổng / tháng</div>
+            <div class="info-field-value" style="font-size:20px;color:var(--navy)">₫{{ "{:,}".format(student.scholarship_amt) }}</div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:16px">
+        <button type="button"
+                class="btn btn-sm"
+                data-bs-toggle="modal"
+                data-bs-target="#modalChangePassword"
+                style="background:#f1f5fb;border:1px solid var(--border);color:var(--navy);font-weight:600;border-radius:999px;display:flex;align-items:center;gap:6px">
+          <i class="bi bi-shield-lock"></i> Đổi mật khẩu
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal fade" id="modalChangePassword" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:460px">
+    <div class="modal-content" style="border-radius:16px;border:none;box-shadow:0 20px 60px rgba(0,0,0,.15)">
+      <form method="post" action="/change-password">
+        <div class="modal-header" style="border-bottom:1px solid #f0f2f7;padding:20px 24px">
+          <h5 class="modal-title" style="font-weight:700;font-size:16px;color:#0f1b3d">
+            <i class="bi bi-shield-lock-fill me-2" style="color:#2563eb"></i>Đổi mật khẩu
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" style="padding:24px">
+          <div class="mb-3">
+            <label class="form-label" style="font-weight:600;font-size:13px;color:#374151">Mật khẩu hiện tại</label>
+            <div class="input-group">
+              <input type="password" id="pw_current" name="current_password"
+                     class="form-control" placeholder="Nhập mật khẩu hiện tại" required
+                     style="border-right:none;border-radius:8px 0 0 8px"
+                     oninput="checkCurrentPw(this.value)">
+              <button type="button" class="btn btn-outline-secondary"
+                      onclick="togglePw('pw_current','eye_current')"
+                      style="border-left:none;border-radius:0 8px 8px 0;background:#fff">
+                <i id="eye_current" class="bi bi-eye-slash"></i>
+              </button>
+            </div>
+            <div id="forgot-pw-hint" style="display:none;margin-top:8px">
+              <a href="#" onclick="showForgotInfo(event)"
+                 style="font-size:12px;color:#b91c1c;font-weight:600;text-decoration:none">
+                <i class="bi bi-question-circle me-1"></i>Quên mật khẩu?
+              </a>
+              <div id="forgot-pw-info" style="display:none;margin-top:8px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e">
+                <div style="font-weight:700;margin-bottom:4px">Liên hệ quản lý để đặt lại mật khẩu:</div>
+                <div><i class="bi bi-telephone-fill me-1"></i><b>0778177081</b></div>
+                <div><i class="bi bi-envelope-fill me-1"></i><b>samkol.mleang@gmail.com</b></div>
+                <div style="margin-top:6px;color:#78350f">Quản lý sẽ đặt lại về mật khẩu mặc định để bạn đăng nhập lại.</div>
+              </div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" style="font-weight:600;font-size:13px;color:#374151">Mật khẩu mới</label>
+            <div class="input-group">
+              <input type="password" id="pw_new" name="new_password"
+                     class="form-control" placeholder="Tối thiểu 6 ký tự" required minlength="6"
+                     style="border-right:none;border-radius:8px 0 0 8px"
+                     oninput="checkMatch()">
+              <button type="button" class="btn btn-outline-secondary"
+                      onclick="togglePw('pw_new','eye_new')"
+                      style="border-left:none;border-radius:0 8px 8px 0;background:#fff">
+                <i id="eye_new" class="bi bi-eye-slash"></i>
+              </button>
+            </div>
+          </div>
+          <div class="mb-1">
+            <label class="form-label" style="font-weight:600;font-size:13px;color:#374151">Xác nhận mật khẩu mới</label>
+            <div class="input-group">
+              <input type="password" id="pw_confirm" name="confirm_password"
+                     class="form-control" placeholder="Nhập lại mật khẩu mới" required minlength="6"
+                     style="border-right:none;border-radius:8px 0 0 8px"
+                     oninput="checkMatch()">
+              <button type="button" class="btn btn-outline-secondary"
+                      onclick="togglePw('pw_confirm','eye_confirm')"
+                      style="border-left:none;border-radius:0 8px 8px 0;background:#fff">
+                <i id="eye_confirm" class="bi bi-eye-slash"></i>
+              </button>
+            </div>
+            <div id="pw_match_msg" style="font-size:12px;margin-top:5px;display:none"></div>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top:1px solid #f0f2f7;padding:16px 24px;gap:8px">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
+                  style="border-radius:8px;font-weight:600">Hủy</button>
+          <button type="submit" id="btn_submit_pw" class="btn btn-primary"
+                  style="border-radius:8px;font-weight:600">
+            <i class="bi bi-check-circle me-1"></i>Cập nhật mật khẩu
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function previewAvatar() {
+  var img = document.querySelector('.profile-avatar-wrap img');
+  var initials = document.querySelector('.profile-avatar-wrap .initials');
+  var preview = document.getElementById('previewImage');
+  if (img) {
+    preview.src = img.src;
+    preview.alt = 'Avatar';
+    new bootstrap.Modal(document.getElementById('modalImagePreview')).show();
+  }
+  // If no image (initials), do nothing or show a message
+}
+
+function checkCurrentPw(val) {
+  var hint = document.getElementById('forgot-pw-hint');
+  hint.style.display = val.length > 0 ? 'block' : 'none';
+  if (val.length === 0) {
+    document.getElementById('forgot-pw-info').style.display = 'none';
+  }
+}
+function showForgotInfo(e) {
+  e.preventDefault();
+  var info = document.getElementById('forgot-pw-info');
+  info.style.display = info.style.display === 'none' ? 'block' : 'none';
+}
+function togglePw(inputId, iconId) {
+  var inp  = document.getElementById(inputId);
+  var icon = document.getElementById(iconId);
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    icon.className = 'bi bi-eye';
+  } else {
+    inp.type = 'password';
+    icon.className = 'bi bi-eye-slash';
+  }
+}
+function checkMatch() {
+  var nw  = document.getElementById('pw_new').value;
+  var cf  = document.getElementById('pw_confirm').value;
+  var msg = document.getElementById('pw_match_msg');
+  var btn = document.getElementById('btn_submit_pw');
+  if (cf.length === 0) { msg.style.display='none'; return; }
+  msg.style.display = 'block';
+  if (nw === cf) {
+    msg.style.color = '#16a34a';
+    msg.innerHTML = '<i class="bi bi-check-circle-fill"></i> Mật khẩu khớp';
+    btn.disabled = false;
+  } else {
+    msg.style.color = '#dc2626';
+    msg.innerHTML = '<i class="bi bi-x-circle-fill"></i> Mật khẩu không khớp';
+    btn.disabled = true;
+  }
+}
+</script>
+
+{% endblock %}

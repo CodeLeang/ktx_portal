@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+{% block title %}Hóa đơn — Quản lý KTX{% endblock %}
+{% block page_title %}Cập nhật hóa đơn{% endblock %}
+
+{% block content %}
+
+<div class="row g-4">
+
+  {# ════════════════════════════════════════
+     LEFT — entry form
+     ════════════════════════════════════════ #}
+  <div class="col-lg-5">
+    <div class="card-soft">
+      <div class="card-title"><i class="bi bi-receipt-cutoff me-2"></i>Nhập hóa đơn tháng</div>
+
+      <form method="post">
+
+        {# Room #}
+        <div class="mb-3">
+          <label class="form-label" style="font-size:13px;font-weight:600">Phòng</label>
+          <select name="room_id" class="form-select" required>
+            <option value="">— Chọn phòng —</option>
+            {% for r in rooms %}
+            <option value="{{ r.id }}" {% if last_input.room_id and last_input.room_id == r.id|string %}selected{% endif %}>{{ r.code }} — Tòa {{ r.building }}, Tầng {{ r.floor }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {# Bill type #}
+        <div class="mb-3">
+          <label class="form-label" style="font-size:13px;font-weight:600">Loại hóa đơn</label>
+          <div style="display:flex;gap:20px">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="bill_type"
+                     id="bt-elec" value="electric" {% if last_input.bill_type != 'water' %}checked{% endif %}>
+              <label class="form-check-label" for="bt-elec"
+                     style="font-size:13.5px;font-weight:500">
+                <i class="bi bi-lightning-charge-fill" style="color:#b45309;margin-right:4px"></i>Điện
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="bill_type"
+                     id="bt-water" value="water" {% if last_input.bill_type == 'water' %}checked{% endif %}>
+              <label class="form-check-label" for="bt-water"
+                     style="font-size:13.5px;font-weight:500">
+                <i class="bi bi-droplet-fill" style="color:#0369a1;margin-right:4px"></i>Nước
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {# Period #}
+        <div class="mb-3">
+          <label class="form-label" style="font-size:13px;font-weight:600">Kỳ (Tháng / Năm)</label>
+          <select name="period" id="period-select" class="form-select" required
+                  data-selected="{{ selected_period or now_period }}">
+          <option value="">— Chọn tháng —</option>
+          </select>
+        <div class="form-text">Chọn tháng cần nhập hóa đơn</div>
+</div>
+
+        {# Usage + Quota #}
+        <div class="row g-3 mb-3">
+          <div class="col-6">
+            <label class="form-label" style="font-size:13px;font-weight:600">Chỉ số sử dụng</label>
+            <div class="input-group">
+              <input name="usage_value" type="number" step="0.01" min="0"
+                     class="form-control" placeholder="55" value="{{ last_input.usage_value }}" required>
+              <span class="input-group-text" id="lbl-unit"
+                    style="font-size:12px;color:var(--muted)">kWh</span>
+            </div>
+          </div>
+          <div class="col-6">
+            <label class="form-label" style="font-size:13px;font-weight:600">Hạn mức bao cấp</label>
+            <div class="input-group">
+              <input name="quota" type="number" step="0.01" min="0"
+                     id="quota-input" class="form-control" placeholder="60" value="{{ last_input.quota }}" required>
+              <span class="input-group-text" id="lbl-quota"
+                    style="font-size:12px;color:var(--muted)">kWh</span>
+            </div>
+          </div>
+        </div>
+
+        {# ── RATE field — editable ─────────────────────────────── #}
+        <div class="mb-3">
+          <label class="form-label" style="font-size:13px;font-weight:600">
+            Đơn giá vượt hạn mức
+            <span style="font-size:11px;font-weight:400;color:var(--muted)">(₫ / đơn vị)</span>
+          </label>
+          <div class="input-group">
+            <span class="input-group-text" id="rate-prefix"
+                  style="font-size:13px">
+              <i class="bi bi-lightning-charge-fill" style="color:#b45309"></i>
+            </span>
+            <input name="unit_rate" id="rate-input" type="number" min="0"
+                   class="form-control" value="{{ last_input.unit_rate or 2700 }}"
+                   placeholder="2700">
+            <span class="input-group-text" id="lbl-rate"
+                  style="font-size:12px;color:var(--muted)">₫/kWh</span>
+          </div>
+          <div class="form-text" id="rate-hint">
+            Giá tham chiếu điện: <b>2.700₫/kWh</b> — có thể thay đổi trước khi lưu hóa đơn
+          </div>
+        </div>
+
+        {# Info note — live preview #}
+        <div style="display:flex;align-items:flex-start;gap:10px;
+                    background:#eef4fc;border:1px solid #d8e4f6;
+                    border-radius:10px;padding:11px 14px;margin-bottom:18px">
+          <i class="bi bi-calculator-fill"
+             style="color:var(--primary);font-size:16px;flex-shrink:0;margin-top:1px"></i>
+          <div style="font-size:12.5px;color:var(--primary)" id="rate-note">
+            Phần <b>vượt hạn mức</b> × đơn giá bạn nhập = phí phát sinh
+          </div>
+        </div>
+
+        <button type="submit" class="btn w-100"
+                style="background:var(--navy);border-color:var(--navy);
+                       color:#fff;font-weight:600">
+          <i class="bi bi-cloud-upload me-2"></i>Lưu hóa đơn
+        </button>
+
+      </form>
+    </div>
+  </div>
+
+
+  {# ════════════════════════════════════════
+     RIGHT — bills history with paid toggle
+     ════════════════════════════════════════ #}
+  <div class="col-lg-7">
+    <div class="card-soft">
+
+      {# Header — hiển thị tháng/năm đang chọn, lấy từ "Nhập hóa đơn tháng" bên trái #}
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div class="card-title" style="margin-bottom:0">Hóa đơn đã nhập</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span id="active-month-badge"
+                style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;
+                       border-radius:8px;font-size:13px;font-weight:700;
+                       background:#eef4fc;color:var(--navy);border:1px solid #d8e4f6;
+                       white-space:nowrap">
+            <i class="bi bi-calendar3"></i><span id="active-month-text">—</span>
+          </span>
+          <div id="summary-badges" style="display:flex;gap:6px"></div>
+        </div>
+      </div>
+      <div class="form-text" style="margin-top:-10px;margin-bottom:14px">
+        Tháng/năm này luôn khớp với ô <b>Kỳ (Tháng / Năm)</b> ở khung bên trái.
+      </div>
+
+      {% if bills %}
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              {% for h in ['Phòng','Loại','Kỳ','Sử dụng','Hạn mức','Đơn giá','Phí phát sinh','Thao tác'] %}
+              <th style="font-size:11px;font-weight:700;color:var(--muted);
+                         text-transform:uppercase;letter-spacing:.07em;
+                         background:#f6f8fc;border-bottom:1px solid var(--border);
+                         padding:10px 12px;white-space:nowrap">{{ h }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for b in bills %}
+            {% set quota_val = b.quota | float %}
+            {% set used_val  = b.usage_value | float %}
+            {% set pct = [(used_val / quota_val * 100) | round | int, 100] | min if quota_val else 0 %}
+            {% set over_quota = used_val > quota_val %}
+            <tr class="bill-row" data-period="{{ b.period }}">
+
+              {# Room #}
+              <td style="padding:11px 12px;border-bottom:1px solid var(--border);
+                         font-weight:700;font-size:13px">{{ b.room_code }}</td>
+
+              {# Type icon #}
+              <td style="padding:11px 12px;border-bottom:1px solid var(--border)">
+                {% if b.bill_type == 'electric' %}
+                  <i class="bi bi-lightning-charge-fill" style="color:#b45309"></i>
+                  <span style="font-size:12px;margin-left:2px">Điện</span>
+                {% else %}
+                  <i class="bi bi-droplet-fill" style="color:#0369a1"></i>
+                  <span style="font-size:12px;margin-left:2px">Nước</span>
+                {% endif %}
+              </td>
+
+              {# Period #}
+              <td style="padding:11px 12px;border-bottom:1px solid var(--border);
+                         font-size:12px;color:var(--muted)">{{ b.period }}</td>
+
+              {# Usage + bar #}
+              <td style="padding:11px 12px;border-bottom:1px solid var(--border)">
+                <div style="display:flex;align-items:center;gap:7px">
+                  <span style="font-size:13px;min-width:38px;
+                               {% if over_quota %}color:var(--danger);font-weight:600{% endif %}">
+                    {{ b.usage_value }}
+                  </span>
+                  <div style="width:60px;height:6px;border-radius:999px;
+                              background:#eef2f7;overflow:hidden;display:inline-block">
+                    <div style="height:100%;border-radius:999px;width:{{ pct }}%;
+                                background:{% if over_quota %}var(--danger)
+                                           {% elif b.bill_type=='electric' %}#f59e0b
+                                           {% else %}#0284c7{% endif %}"></div>
+                  </div>
+                </div>
+              </td>
+
+              {# Quota #}
+              <td style="padding:11px 12px;border-bottom:1px solid var(--border);
+                         font-size:12.5px;color:var(--muted)">{{ b.quota }}</td>
+
+              {# Unit rate #}
+              <td style="padding:11px 12px;border-bottom:1px solid var(--border);
+                         font-size:12px;color:var(--muted)">
+                {% set rate = b.unit_rate | default(0) %}
+                {% if rate and rate > 0 %}
+                  {{ "{:,}".format(rate) }}₫
+                {% else %}
+                  {% if b.bill_type == 'electric' %}2,700₫{% else %}1,500₫{% endif %}
+                {% endif %}
+              </td>
+
+              {# Amount due #}
+              <td style="padding:11px 12px;border-bottom:1px solid var(--border)">
+                {% if b.amount_due > 0 %}
+                  <span style="color:var(--danger);font-weight:700;font-size:13px">
+                    +{{ "{:,}".format(b.amount_due) }}₫
+                  </span>
+                {% else %}
+                  <span style="color:#157a3a;font-size:12.5px;font-weight:600">Miễn phí</span>
+                {% endif %}
+              </td>
+
+              {# Actions #}
+              <td style="padding:11px 12px;border-bottom:1px solid var(--border)">
+                <div style="display:flex;align-items:center;gap:6px">
+                  {# Delete button — always visible #}
+                  <form method="post" action="{{ url_for('admin.delete_bill', bill_id=b.id) }}"
+                        onsubmit="return confirm('Xóa hóa đơn này?')">
+                    <button type="submit" class="btn btn-sm"
+                            style="background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-weight:600;font-size:12px"
+                            title="Xóa hóa đơn">
+                      <i class="bi bi-trash3-fill"></i>
+                    </button>
+                  </form>
+                </div>
+              </td>
+
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% else %}
+      <div style="text-align:center;padding:48px 0;color:var(--muted)">
+        <i class="bi bi-receipt"
+           style="font-size:40px;opacity:.3;display:block;margin-bottom:12px"></i>
+        Chưa có hóa đơn nào. Nhập hóa đơn đầu tiên bên trái.
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+</div>
+
+
+{# ── JS: update unit labels + rate hint when bill type changes ─── #}
+<script>
+var DEFAULTS = { electric: { unit:'kWh', quota:'60', rate:'2700', icon:'⚡', label:'điện', hint:'2.700₫/kWh' },
+                 water:    { unit:'m³',  quota:'10', rate:'1500', icon:'💧', label:'nước', hint:'1.500₫/m³' } };
+
+function updateType(isInitialLoad) {
+  var isElec = document.getElementById('bt-elec').checked;
+  var cfg    = isElec ? DEFAULTS.electric : DEFAULTS.water;
+
+  document.getElementById('lbl-unit').textContent  = cfg.unit;
+  document.getElementById('lbl-quota').textContent = cfg.unit;
+  document.getElementById('lbl-rate').textContent  = '₫/' + cfg.unit;
+  document.getElementById('quota-input').placeholder = cfg.quota;
+  if (!isInitialLoad) {
+    document.getElementById('rate-input').value = cfg.rate;
+  }
+  document.getElementById('rate-hint').innerHTML =
+    'Giá tham chiếu ' + cfg.label + ': <b>' + cfg.hint + '</b> — có thể thay đổi trước khi lưu hóa đơn';
+  document.getElementById('rate-prefix').innerHTML =
+    isElec ? '<i class="bi bi-lightning-charge-fill" style="color:#b45309"></i>'
+           : '<i class="bi bi-droplet-fill" style="color:#0369a1"></i>';
+}
+
+document.getElementById('bt-elec').addEventListener('change', function() { updateType(false); });
+document.getElementById('bt-water').addEventListener('change', function() { updateType(false); });
+updateType(true); // đồng bộ label khi tải lại, giữ nguyên đơn giá đã lưu trước đó
+
+/* ── Generate month options (current month + 11 months back) ── */
+(function() {
+  var sel = document.getElementById('period-select');
+  var wanted = sel.getAttribute('data-selected');
+  var now = new Date();
+  var matched = false;
+  for (var i = 0; i < 24; i++) {
+    var d    = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    var yyyy = d.getFullYear();
+    var mm   = String(d.getMonth() + 1).padStart(2, '0');
+    var val  = yyyy + '-' + mm;
+    var label= 'T' + mm + '/' + yyyy;
+    var opt  = document.createElement('option');
+    opt.value       = val;
+    opt.textContent = label;
+    if (wanted && val === wanted) {
+      opt.selected = true;
+      matched = true;
+    } else if (!wanted && i === 0) {
+      opt.selected = true;
+    }
+    sel.appendChild(opt);
+  }
+  /* Nếu kỳ vừa lưu cũ hơn 24 tháng (ngoài danh sách), vẫn thêm vào để hiển thị đúng */
+  if (wanted && !matched) {
+    var extra = document.createElement('option');
+    extra.value = wanted;
+    var parts = wanted.split('-');
+    extra.textContent = 'T' + parts[1] + '/' + parts[0];
+    extra.selected = true;
+    sel.appendChild(extra);
+  }
+})();
+
+/* ── MỘT NGUỒN DUY NHẤT cho tháng đang chọn: period-select.
+   Khung "Hóa đơn đã nhập" không còn ô chọn riêng — chỉ hiển thị
+   theo đúng giá trị của period-select, không thể bị lệch nhau. ── */
+var allRows = Array.from(document.querySelectorAll('tr[data-period]'));
+
+function currentPeriod() {
+  return document.getElementById('period-select').value;
+}
+
+function applyFilter() {
+  var period = currentPeriod();
+  allRows.forEach(function(r) {
+    r.style.display = (!period || r.dataset.period === period) ? '' : 'none';
+  });
+  updateBadges(period);
+  updateActiveMonthText(period);
+}
+
+function updateBadges(period) {
+  var visible = allRows.filter(function(r) {
+    return !period || r.dataset.period === period;
+  });
+  var total = visible.length;
+  var chargeable = visible.filter(function(r) {
+    var feeEl = r.querySelector('td:nth-child(7)');
+    return feeEl && feeEl.textContent.indexOf('Miễn phí') === -1;
+  }).length;
+  var b = document.getElementById('summary-badges');
+  if (!b) return;
+  b.innerHTML =
+    '<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;background:#eef4fc;color:var(--navy);border:1px solid #d8e4f6"><i class="bi bi-receipt" style="font-size:11px"></i>' + total + ' hóa đơn</span>' +
+    (chargeable > 0 ? '<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;background:#fff7ed;color:#b45309;border:1px solid #fed7aa"><i class="bi bi-cash-stack" style="font-size:11px"></i>' + chargeable + ' có phí</span>' : '');
+}
+
+function updateActiveMonthText(period) {
+  var el = document.getElementById('active-month-text');
+  if (!el) return;
+  if (!period) { el.textContent = '—'; return; }
+  var parts = period.split('-');
+  el.textContent = 'T' + parts[1] + '/' + parts[0];
+}
+
+// Mỗi khi đổi Kỳ ở khung "Nhập hóa đơn tháng", khung "Hóa đơn đã nhập"
+// cập nhật ngay lập tức — không cần bấm gì thêm, không có ô chọn riêng để lệch.
+document.getElementById('period-select').addEventListener('change', applyFilter);
+
+// Khởi tạo lần đầu khi tải trang (gồm cả sau khi vừa lưu hóa đơn và redirect về).
+applyFilter();
+</script>
+
+{% endblock %}

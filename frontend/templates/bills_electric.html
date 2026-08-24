@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block page_title %}Hóa đơn điện{% endblock %}
+{% block content %}
+<div class="card-soft">
+  {% if room %}
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+    <div class="card-title" style="margin-bottom:0">Lịch sử hóa đơn điện — Phòng {{ room.code }}</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <select id="month-sel" class="form-select form-select-sm" style="width:150px;font-size:13px;border-radius:8px">
+        <option value="all">Tất cả</option>
+        {% set seen = [] %}
+        {% for b in history %}
+          {% if b.period not in seen %}
+            {% set _ = seen.append(b.period) %}
+            {% set pts = b.period.split('-') %}
+            <option value="{{ b.period }}">T{{ pts[1] }}/{{ pts[0] }}</option>
+          {% endif %}
+        {% endfor %}
+      </select>
+      <button onclick="filterBills()" class="btn btn-sm"
+              style="background:var(--navy);color:#fff;border:none;border-radius:8px;font-weight:600;padding:6px 14px">
+        <i class="bi bi-search me-1"></i>Xem
+      </button>
+    </div>
+  </div>
+  <table class="table align-middle" id="bills-table">
+    <thead>
+      <tr>
+        <th>Kỳ</th><th>Sử dụng</th><th>Hạn mức</th><th>Phải trả</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for b in history %}
+      <tr data-period="{{ b.period }}">
+        <td>{{ b.period }}</td>
+        <td>{{ b.usage_value|int }} kWh</td>
+        <td>{{ b.quota|int }} kWh</td>
+        <td>{% if b.amount_due == 0 %}<span class="text-success fw-semibold">Miễn phí</span>{% else %}<span class="fw-bold" style="color:var(--danger)">₫{{ "{:,}".format(b.amount_due) }}</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="text-muted">Bạn chưa được phân phòng nên chưa có hóa đơn điện.</div>
+  {% endif %}
+</div>
+<script>
+function filterBills() {
+  var val = document.getElementById('month-sel').value;
+  document.querySelectorAll('#bills-table tbody tr').forEach(function(r) {
+    r.style.display = (val === 'all' || r.dataset.period === val) ? '' : 'none';
+  });
+}
+// Auto select most recent
+(function(){
+  var sel = document.getElementById('month-sel');
+  if (sel && sel.options.length > 1) { sel.selectedIndex = 1; filterBills(); }
+})();
+</script>
+{% endblock %}

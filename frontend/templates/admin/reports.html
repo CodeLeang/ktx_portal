@@ -1,0 +1,470 @@
+{% extends "base.html" %}
+{% block title %}Báo hỏng — Quản lý KTX{% endblock %}
+{% block page_title %}Phản hồi báo hỏng{% endblock %}
+
+{% block content %}
+
+<style>
+/* Split layout */
+.split-view-container { display: flex; gap: 16px; align-items: flex-start; position: relative; width: 100%; }
+.master-list-panel { flex: 1; min-width: 0; overflow: hidden; }
+
+/* RIGHT PANEL – much smaller now */
+.detail-item-panel { 
+  flex: 0 0 30%;           /* takes 30% of parent width */
+  min-width: 260px;        /* never narrower than 260px */
+  max-width: 360px;        /* never wider than 360px */
+  position: sticky;
+  top: 20px;
+  max-height: calc(100vh - 120px);
+  z-index: 10;
+}
+
+.detail-panel-card {
+  background: #fff; border: 1.5px solid var(--border); border-radius: 14px; 
+  overflow: hidden; box-shadow: 0 8px 24px -8px rgba(15,27,61,.10);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 120px);
+}
+
+.detail-body-scroll {
+  overflow-y: auto;
+  padding: 10px 12px;          /* much less padding */
+}
+
+/* scrollbar */
+.detail-body-scroll::-webkit-scrollbar { width: 4px; }
+.detail-body-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.10); border-radius: 4px; }
+
+/* Filter pills */
+.filter-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+.filter-pill {
+  border: 1px solid var(--border); background: #f1f5fb; padding: 5px 12px;
+  border-radius: 16px; font-size: 12px; font-weight: 600; color: var(--navy);
+  cursor: pointer; transition: all .15s ease; display: inline-flex; align-items: center; gap: 4px;
+}
+.filter-pill:hover { background: #e8effd; }
+.filter-pill.active { background: var(--navy) !important; color: #fff !important; border-color: var(--navy) !important; }
+
+/* Mini cards – compact */
+.mini-report-card {
+  background: #fff; border: 1.5px solid var(--border); border-radius: 12px;
+  padding: 10px 12px; cursor: pointer; margin-bottom: 8px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.mini-report-card:hover { border-color: #94a3c4; box-shadow: 0 2px 8px -2px rgba(15,27,61,.06); }
+.mini-report-card.active { 
+  border-color: var(--primary); 
+  box-shadow: 0 4px 12px -4px rgba(44,74,138,.12), 0 0 0 2px rgba(44,74,138,.06); 
+}
+
+/* Status badges – smaller */
+.badge-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.bg-pending { background: #ef4444; }
+.bg-progress { background: #3b82f6; }
+.bg-resolved { background: #10b981; }
+
+.status-badge-solid {
+  font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; display: inline-flex; align-items: center; gap: 3px;
+}
+
+/* ── MEDIUM SCREENS: even smaller ── */
+@media (max-width: 1300px) and (min-width: 992px) {
+  .detail-item-panel {
+    flex: 0 0 28%;
+    min-width: 240px;
+    max-width: 320px;
+  }
+  .detail-body-scroll {
+    padding: 8px 10px;
+  }
+}
+
+/* ── MOBILE BOTTOM SHEET ── */
+@media (max-width: 991px) {
+  .detail-item-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 75vh;
+    max-height: 75vh;
+    background: #fff;
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.12);
+    transform: translateY(100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    margin: 0;
+    z-index: 1050;
+    border-radius: 16px 16px 0 0;
+    overflow: hidden;
+    flex: unset; min-width: unset; max-width: unset;
+  }
+
+  .detail-item-panel.open-mobile {
+    transform: translateY(0);
+  }
+
+  .detail-panel-card {
+    border-radius: 0 !important;
+    border: none !important;
+    height: 100%;
+    max-height: 100%;
+    box-shadow: none !important;
+  }
+
+  .detail-body-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 40px;
+    padding: 12px 16px; /* more readable on mobile */
+  }
+
+  .mobile-pane-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 27, 61, 0.3);
+    z-index: 1040;
+    display: none;
+    backdrop-filter: blur(2px);
+  }
+  .mobile-pane-overlay.active {
+    display: block;
+  }
+}
+
+/* Internal element sizing – compact */
+.detail-panel-card > div:first-child {
+  padding: 10px 14px !important;  /* smaller header */
+}
+#det-title {
+  font-size: 15px !important;
+  margin: 4px 0 0 !important;
+  max-width: 220px;
+}
+#det-date {
+  font-size: 10px !important;
+}
+.detail-body-scroll .form-label {
+  font-size: 9px !important;
+  margin-bottom: 3px !important;
+}
+#det-desc {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 11px;
+  color: #334155;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+.detail-body-scroll .form-select-sm {
+  font-size: 12px;
+  padding: 4px 8px;
+}
+.detail-body-scroll textarea {
+  font-size: 12px !important;
+  padding: 6px 8px !important;
+  min-height: 60px;
+}
+.detail-body-scroll .btn-sm {
+  padding: 5px 12px !important;
+  font-size: 12px !important;
+  height: 30px !important;
+}
+/* location and student blocks – compact */
+.detail-body-scroll .location-block {
+  padding: 6px 10px !important;
+  margin-bottom: 10px !important;
+  font-size: 11px;
+}
+.detail-body-scroll .student-block {
+  margin-bottom: 10px !important;
+  font-size: 11px;
+}
+.detail-body-scroll .student-block .label {
+  font-size: 9px !important;
+}
+.detail-body-scroll .desc-block {
+  margin-bottom: 12px !important;
+}
+.detail-body-scroll .reply-box {
+  padding: 8px 10px !important;
+  font-size: 11px !important;
+  margin-bottom: 12px !important;
+}
+.detail-body-scroll .action-form {
+  padding-top: 10px !important;
+}
+.detail-body-scroll .action-form .form-group {
+  margin-bottom: 8px !important;
+}
+</style>
+
+<div id="detail-overlay" class="mobile-pane-overlay" onclick="closeDetail()"></div>
+
+{# counts #}
+{% set n_pending  = reports | selectattr('status','equalto','pending')     | list | length %}
+{% set n_progress = reports | selectattr('status','equalto','in_progress') | list | length %}
+{% set n_resolved = reports | selectattr('status','equalto','resolved')    | list | length %}
+
+{# Filter Pills #}
+<div class="filter-pills">
+  <button id="tab-all" class="filter-pill active" onclick="filterReports('')">
+    Tất cả <span style="font-size:10px; opacity:.7">({{ reports|length }})</span>
+  </button>
+  <button id="tab-pending" class="filter-pill" onclick="filterReports('pending')" style="color:#b91c1c;">
+    Chờ xử lý {% if n_pending %}<span style="background:#fee2e2; padding:0 5px; border-radius:8px; font-size:10px">{{ n_pending }}</span>{% endif %}
+  </button>
+  <button id="tab-in_progress" class="filter-pill" onclick="filterReports('in_progress')" style="color:#1e40af;">
+    Đang xử lý {% if n_progress %}<span style="background:#dbeafe; padding:0 5px; border-radius:8px; font-size:10px">{{ n_progress }}</span>{% endif %}
+  </button>
+  <button id="tab-resolved" class="filter-pill" onclick="filterReports('resolved')" style="color:#166534;">
+    Đã xử lý {% if n_resolved %}<span style="background:#dcfce7; padding:0 5px; border-radius:8px; font-size:10px">{{ n_resolved }}</span>{% endif %}
+  </button>
+</div>
+
+{# Split Layout #}
+<div class="split-view-container">
+
+  {# LEFT PANEL #}
+  <div class="master-list-panel">
+    {% if reports %}
+      {% for r in reports %}
+      <div id="report-card-{{ r.id }}" class="mini-report-card" data-status="{{ r.status }}" onclick="selectReport({{ r.id }})">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px">
+          <div>
+            <div style="font-size:13px; font-weight:700; color:var(--navy); line-height:1.2">{{ r.title }}</div>
+            <div style="font-size:11px; color:var(--muted); margin-top:2px">
+              <strong>Phòng {{ r.room_code }}</strong> · {{ r.full_name }}
+            </div>
+          </div>
+          <div style="text-align:right; flex-shrink:0">
+            <span style="font-size:10px; color:var(--muted); display:block; margin-bottom:2px">{{ r.created_at.strftime('%d/%m/%Y') }}</span>
+            <div style="display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:600; color:var(--navy)">
+              <span class="badge-dot {% if r.status == 'pending' %}bg-pending{% elif r.status == 'in_progress' %}bg-progress{% else %}bg-resolved{% endif %}"></span>
+              {% if r.status == 'pending' %}Chờ xử lý{% elif r.status == 'in_progress' %}Đang xử lý{% else %}Đã xong{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div style="text-align:center; padding:40px 0; color:var(--muted); background:#fff; border-radius:14px; border:1px solid var(--border)">
+        <i class="bi bi-tools" style="font-size:32px; opacity:.2; display:block; margin-bottom:8px"></i>
+        Không có báo hỏng nào.
+      </div>
+    {% endif %}
+  </div>
+
+  {# RIGHT PANEL – DETAIL #}
+  <div id="detail-pane" class="detail-item-panel" style="display:none">
+    <div class="detail-panel-card">
+      
+      {# Header Banner – compact #}
+      <div style="background:linear-gradient(135deg,#0f1b3d,#1e315f); padding:10px 14px; color:#fff; flex-shrink: 0;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div>
+            <span id="det-badge" class="status-badge-solid">—</span>
+            <h3 id="det-title" style="font-size:15px; font-weight:800; margin:4px 0 0; color:#fff; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">—</h3>
+            <div id="det-date" style="font-size:10px; color:rgba(255,255,255,.6)">—</div>
+          </div>
+          <button type="button" onclick="closeDetail()" style="background:rgba(255,255,255,.12); border:none; color:#fff; border-radius:6px; width:24px; height:24px; display:grid; place-items:center; cursor:pointer; font-size:12px">✕</button>
+        </div>
+      </div>
+
+      {# Scrollable body – very compact #}
+      <div class="detail-body-scroll">
+        
+        {# Location #}
+        <div class="location-block" style="background:#f0f4ff; border:1px solid #d0dffd; border-radius:8px; padding:6px 10px; display:flex; align-items:center; gap:8px; margin-bottom:10px">
+          <i class="bi bi-building-check" style="color:#1a56db; font-size:14px"></i>
+          <div>
+            <div style="font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.02em">Vị trí:</div>
+            <div id="det-room" style="font-size:12px; font-weight:700; color:var(--navy)">—</div>
+          </div>
+        </div>
+
+        {# Student #}
+        <div class="student-block" style="margin-bottom:10px; font-size:11px; color:var(--navy)">
+          <div class="label" style="font-weight:600; color:var(--muted); font-size:9px; text-transform:uppercase; margin-bottom:2px">Sinh viên báo hỏng:</div>
+          <span id="det-student" style="font-weight:700">—</span>
+        </div>
+
+        {# Description #}
+        <div class="desc-block" style="margin-bottom:12px">
+          <div style="font-weight:600; color:var(--muted); font-size:9px; text-transform:uppercase; margin-bottom:3px">Nội dung mô tả:</div>
+          <div id="det-desc">—</div>
+        </div>
+
+        {# Reply box #}
+        <div id="det-reply-box" class="reply-box" style="display:none; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:8px 10px; font-size:11px; color:#166534; margin-bottom:12px">
+          <div style="font-weight:700; display:flex; align-items:center; gap:4px; margin-bottom:2px; font-size:10px">
+            <i class="bi bi-chat-left-text-fill"></i> Phản hồi hiện tại:
+          </div>
+          <div id="det-reply-text">—</div>
+        </div>
+
+        {# Action form #}
+        <div class="action-form" style="border-top:1px solid #f0f2f7; padding-top:10px">
+          <form method="post" id="action-form" style="margin:0">
+            <input type="hidden" name="report_id" id="form-report-id">
+            
+            <div class="form-group" style="margin-bottom:8px">
+              <label class="form-label" style="font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; display:block; margin-bottom:3px">Cập nhật trạng thái</label>
+              <select name="status" id="form-status" class="form-select form-select-sm" style="border-radius:6px; font-weight:600; font-size:12px; padding:4px 8px; width:100%">
+                <option value="pending">⏳ Chờ xử lý</option>
+                <option value="in_progress">🔧 Đang xử lý</option>
+                <option value="resolved">✅ Đã xử lý</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom:8px">
+              <label class="form-label" style="font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; display:block; margin-bottom:3px">Phản hồi gửi sinh viên</label>
+              <textarea name="reply" id="form-reply" class="form-control form-control-sm" rows="2" placeholder="Nhập nội dung..." style="border-radius:6px; font-size:12px; padding:6px 8px; min-height:50px; width:100%"></textarea>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; gap: 8px;">
+              <div id="delete-btn-placeholder"></div>
+              <button type="submit" class="btn btn-sm" style="background:var(--navy); color:#fff; font-weight:700; padding:5px 12px; border-radius:6px; border:none; flex:1; display:inline-flex; align-items:center; justify-content:center; gap:3px; height:30px; font-size:12px;">
+                <i class="bi bi-check-lg"></i> Cập nhật
+              </button>
+            </div>
+          </form>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Hidden delete form #}
+<form id="global-delete-form" method="post" style="display:none"></form>
+
+{# Data JSON #}
+<script id="reports-json" type="application/json">
+[{% for r in reports %}{
+  "id": {{ r.id }},
+  "title": {{ r.title|tojson }},
+  "name": {{ r.full_name|tojson }},
+  "code": {{ r.student_code|tojson }},
+  "room": {{ r.room_code|tojson }},
+  "date": {{ r.created_at.strftime('%d/%m/%Y')|tojson }},
+  "status": {{ r.status|tojson }},
+  "desc": {{ (r.description or '')|tojson }},
+  "reply": {{ (r.admin_reply or '')|tojson }},
+  "del_url": {{ url_for('admin.delete_report', report_id=r.id)|tojson }}
+}{% if not loop.last %},{% endif %}{% endfor %}]
+</script>
+
+<script>
+var reports = JSON.parse(document.getElementById('reports-json').textContent);
+var activeReportId = null;
+
+window.filterReports = function (status) {
+  document.querySelectorAll('.mini-report-card').forEach(function (el) {
+    el.style.display = (!status || el.dataset.status === status) ? 'block' : 'none';
+  });
+  document.querySelectorAll('.filter-pill').forEach(function (btn) {
+    btn.classList.remove('active');
+  });
+  var targetTab = status ? 'tab-' + status : 'tab-all';
+  var activeBtn = document.getElementById(targetTab);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  if (activeReportId) {
+    var activeCard = document.getElementById('report-card-' + activeReportId);
+    if (activeCard && activeCard.style.display === 'none') {
+      closeDetail();
+    }
+  }
+};
+
+window.selectReport = function (id) {
+  activeReportId = id;
+  var r = reports.find(function (x) { return x.id === id; });
+  if (!r) return;
+
+  document.querySelectorAll('.mini-report-card').forEach(function(c){ c.classList.remove('active'); });
+  var card = document.getElementById('report-card-' + id);
+  if (card) card.classList.add('active');
+
+  var b = document.getElementById('det-badge');
+  b.textContent = r.status === 'pending' ? '⏳ Chờ xử lý' : r.status === 'in_progress' ? '🔧 Đang xử lý' : '✅ Đã xử lý';
+  b.style.background = r.status === 'pending' ? '#fee2e2' : r.status === 'in_progress' ? '#dbeafe' : '#dcfce7';
+  b.style.color = r.status === 'pending' ? '#b91c1c' : r.status === 'in_progress' ? '#1e40af' : '#166534';
+
+  document.getElementById('det-title').textContent = r.title;
+  document.getElementById('det-date').textContent = 'Ngày gửi: ' + r.date;
+  document.getElementById('det-room').textContent = 'Phòng ' + r.room;
+  document.getElementById('det-student').textContent = r.name + ' (' + r.code + ')';
+  document.getElementById('det-desc').textContent = r.desc || 'Không có mô tả chi tiết.';
+
+  var rBox = document.getElementById('det-reply-box');
+  if (r.reply) {
+    rBox.style.display = 'block';
+    document.getElementById('det-reply-text').textContent = r.reply;
+  } else {
+    rBox.style.display = 'none';
+  }
+
+  document.getElementById('form-report-id').value = r.id;
+  document.getElementById('form-status').value = r.status;
+  document.getElementById('form-reply').value = r.reply;
+
+  var delPlaceholder = document.getElementById('delete-btn-placeholder');
+  if (r.status === 'resolved') {
+    delPlaceholder.innerHTML = 
+      '<button type="button" class="btn btn-sm" style="background:#fee2e2; border:1px solid #fecaca; color:#b91c1c; font-weight:700; border-radius:6px; padding:4px 8px; height:30px; display:inline-flex; align-items:center; font-size:12px;" onclick="executeDelete(\'' + r.del_url + '\')">' +
+        '<i class="bi bi-trash3-fill"></i>' +
+      '</button>';
+  } else {
+    delPlaceholder.innerHTML = '';
+  }
+
+  var detailPane = document.getElementById('detail-pane');
+  var overlay = document.getElementById('detail-overlay');
+  
+  detailPane.style.display = 'block';
+  if (overlay) overlay.style.display = 'block';
+  
+  setTimeout(function() {
+    detailPane.classList.add('open-mobile');
+    if (overlay) overlay.classList.add('active');
+  }, 10);
+};
+
+window.closeDetail = function () {
+  activeReportId = null;
+  var detailPane = document.getElementById('detail-pane');
+  var overlay = document.getElementById('detail-overlay');
+  
+  detailPane.classList.remove('open-mobile');
+  if (overlay) overlay.classList.remove('active');
+  
+  if (window.innerWidth > 991) {
+    detailPane.style.display = 'none';
+    if (overlay) overlay.style.display = 'none';
+  } else {
+    setTimeout(function() {
+      if (!activeReportId) {
+        detailPane.style.display = 'none';
+        if (overlay) overlay.style.display = 'none';
+      }
+    }, 250);
+  }
+  document.querySelectorAll('.mini-report-card').forEach(function (c) { c.classList.remove('active'); });
+};
+
+window.executeDelete = function (url) {
+  if (confirm('Xóa vĩnh viễn phiếu báo hỏng này?')) {
+    var f = document.getElementById('global-delete-form');
+    f.action = url;
+    f.submit();
+  }
+};
+</script>
+
+{% endblock %}

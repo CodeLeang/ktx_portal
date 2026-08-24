@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Bạn cùng phòng — KTX Portal{% endblock %}
+{% block page_title %}Bạn cùng phòng{% endblock %}
+
+{% block content %}
+
+<div class="row g-4">
+  <!-- Room Info Card -->
+  <div class="col-lg-4">
+    <div class="card-soft">
+      <div class="card-title">Thông tin phòng</div>
+      <div style="display:grid; gap:10px;">
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border);">
+          <span style="color:var(--muted);">Phòng</span>
+          <span style="font-weight:700; color:var(--navy);">{{ room.code if room else '—' }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border);">
+          <span style="color:var(--muted);">Tòa nhà</span>
+          <span style="font-weight:700; color:var(--navy);">{{ room.building if room else '—' }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border);">
+          <span style="color:var(--muted);">Tầng</span>
+          <span style="font-weight:700; color:var(--navy);">{{ room.floor if room else '—' }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border);">
+          <span style="color:var(--muted);">Loại phòng</span>
+          <span style="font-weight:700; color:var(--navy);">{{ room.room_type if room else '—' }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 0;">
+          <span style="color:var(--muted);">Số người ở</span>
+          <span style="font-weight:700; color:var(--navy);">{{ roommates|length }} / {{ room.capacity if room else 0 }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Roommates List -->
+  <div class="col-lg-8">
+    <div class="card-soft">
+      <div class="card-title">Danh sách bạn cùng phòng</div>
+      {% if roommates %}
+        {% for m in roommates %}
+          <div class="roommate" style="padding: 14px 0; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px;">
+            <div class="avatar-sm" style="width: 44px; height: 44px; border-radius: 50%; overflow:hidden; background:#f1f5f9; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              {% if m.avatar_url %}
+                <img src="{{ m.avatar_url }}" style="width:100%; height:100%; object-fit:cover;">
+              {% else %}
+                <span style="font-weight:700; font-size:14px; color:#475569;">{{ m.full_name|initials }}</span>
+              {% endif %}
+            </div>
+            <div style="flex:1;">
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span style="font-weight:600; font-size:15px; color:#0f172a;">{{ m.full_name }}</span>
+                {% if m.id == student.id %}
+                  <span style="background:#1e3a8a; color:#fff; padding:2px 10px; border-radius:999px; font-size:10px; font-weight:700;">Bạn</span>
+                {% else %}
+                  <span style="background:#e5e7eb; color:#374151; padding:2px 10px; border-radius:999px; font-size:10px; font-weight:700;">HB</span>
+                {% endif %}
+              </div>
+              <div style="font-size:13px; color:#6b7280;">{{ m.student_code }}</div>
+              <div style="font-size:13px; color:#6b7280;">{{ m.email or '—' }}</div>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="text-muted" style="padding: 20px 0; text-align:center;">Chưa có ai trong phòng.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock %} 

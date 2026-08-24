@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}Phòng ở — KTX Portal{% endblock %}
+{% block page_title %}Thông tin phòng{% endblock %}
+{% block content %}
+<style>
+  .room-info-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+  }
+  @media (max-width: 768px) { .room-info-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .usage-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 4px;
+  }
+  @media (max-width: 640px) { .usage-grid { grid-template-columns: 1fr; } }
+
+  .usage-card {
+    border-radius: 14px;
+    padding: 20px 22px;
+    border: 1.5px solid;
+  }
+  .usage-bar-track {
+    height: 8px; border-radius: 999px;
+    background: rgba(0,0,0,.08);
+    margin: 10px 0 6px;
+    overflow: hidden;
+  }
+  .usage-bar-fill {
+    height: 100%; border-radius: 999px;
+    transition: width .5s ease;
+  }
+  .usage-label {
+    display: flex; justify-content: space-between;
+    font-size: 12px; font-weight: 600;
+  }
+</style>
+
+{% if room %}
+<!-- ── Room info card ── -->
+<div class="card-soft mb-4">
+  <div class="room-info-grid">
+    <div class="info-cell"><div class="label">Phòng</div><div class="value">{{ room.code }}</div></div>
+    <div class="info-cell"><div class="label">Tòa nhà</div><div class="value">{{ room.building }}</div></div>
+    <div class="info-cell"><div class="label">Tầng</div><div class="value">{{ room.floor }}</div></div>
+    <div class="info-cell"><div class="label">Loại phòng</div><div class="value">{{ room.room_type }}</div></div>
+    <div class="info-cell">
+      <div class="label">Số người đang ở</div>
+      <div class="value">{{ roommates|length }} / {{ room.capacity }} người</div>
+    </div>
+    <div class="info-cell"><div class="label">Hạn mức điện / tháng</div><div class="value">{{ room.elec_quota }} kWh</div></div>
+    <div class="info-cell"><div class="label">Hạn mức nước / tháng</div><div class="value">{{ room.water_quota }} m³</div></div>
+  </div>
+</div>
+
+<!-- ── Current month usage card ── -->
+{% set today = period %}
+{% set month_num = today[5:7]|int %}
+{% set year_num  = today[:4] %}
+{% set month_names = ["Tháng 1","Tháng 2","Tháng 3","Tháng 4","Tháng 5",
+                      "Tháng 6","Tháng 7","Tháng 8","Tháng 9","Tháng 10",
+                      "Tháng 11","Tháng 12"] %}
+
+<div class="card-soft">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div class="card-title" style="margin-bottom:0">Mức tiêu thụ điện &amp; nước</div>
+    <span style="font-size:13px;font-weight:700;color:var(--primary);background:var(--bg);
+                 padding:5px 14px;border-radius:999px;border:1px solid var(--border)">
+      <i class="bi bi-calendar3"></i>
+      {{ month_names[month_num - 1] }} năm {{ year_num }}
+    </span>
+  </div>
+
+  <div class="usage-grid">
+    <!-- Electricity -->
+    {% set eb = bills.get('electric') %}
+    {% set e_used  = (eb.usage_value|int) if eb else 0 %}
+    {% set e_quota = room.elec_quota|int %}
+    {% set e_pct   = [((e_used / e_quota * 100)|int), 100]|min if e_quota > 0 else 0 %}
+    {% set e_over  = e_used > e_quota %}
+
+    <div class="usage-card" style="background:{% if e_over %}#fef2f2{% else %}#fffbeb{% endif %};
+         border-color:{% if e_over %}#fecaca{% else %}#fde68a{% endif %}">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+        <div style="width:36px;height:36px;border-radius:10px;background:{% if e_over %}#fee2e2{% else %}#fef3c7{% endif %};
+             display:grid;place-items:center">
+          <i class="bi bi-lightning-charge-fill" style="color:{% if e_over %}#dc2626{% else %}#d97706{% endif %};font-size:17px"></i>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:{% if e_over %}#7f1d1d{% else %}#78350f{% endif %}">Điện — Phòng {{ room.code }}</div>
+          <div style="font-size:11.5px;color:{% if e_over %}#991b1b{% else %}#92400e{% endif %}">Hạn mức miễn phí: {{ e_quota }} kWh / tháng</div>
+        </div>
+        {% if e_over %}
+        <span style="margin-left:auto;font-size:11px;font-weight:700;background:#dc2626;color:#fff;
+               padding:2px 9px;border-radius:999px">Vượt mức</span>
+        {% else %}
+        <span style="margin-left:auto;font-size:11px;font-weight:700;background:#16a34a;color:#fff;
+               padding:2px 9px;border-radius:999px">Trong mức</span>
+        {% endif %}
+      </div>
+
+      <div style="font-size:28px;font-weight:900;color:{% if e_over %}#dc2626{% else %}var(--navy){% endif %};margin:8px 0 0">
+        {{ e_used }} <span style="font-size:14px;font-weight:600">kWh</span>
+        <span style="font-size:13px;font-weight:500;color:var(--muted)"> / {{ e_quota }} kWh</span>
+      </div>
+
+      <div class="usage-bar-track">
+        <div class="usage-bar-fill" style="width:{{ e_pct }}%;background:{% if e_over %}#ef4444{% else %}#f59e0b{% endif %}"></div>
+      </div>
+      <div class="usage-label" style="color:{% if e_over %}#991b1b{% else %}#92400e{% endif %}">
+        <span>{{ e_pct }}% hạn mức</span>
+        <span>Còn lại: {{ [e_quota - e_used, 0]|max }} kWh</span>
+      </div>
+
+      {% if eb %}
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid {% if e_over %}#fecaca{% else %}#fde68a{% endif %};
+           font-size:13px;font-weight:700;color:{% if e_over %}#dc2626{% else %}var(--navy){% endif %}">
+        Phải trả:
+        {% if eb.amount_due == 0 %}
+          <span style="color:#16a34a">Miễn phí ✓</span>
+        {% else %}
+          ₫{{ "{:,}".format(eb.amount_due) }}
+        {% endif %}
+      </div>
+      {% else %}
+      <div style="margin-top:10px;font-size:12px;color:var(--muted)">Chưa có dữ liệu tháng này</div>
+      {% endif %}
+    </div>
+
+    <!-- Water -->
+    {% set wb = bills.get('water') %}
+    {% set w_used  = (wb.usage_value|int) if wb else 0 %}
+    {% set w_quota = room.water_quota|int %}
+    {% set w_pct   = [((w_used / w_quota * 100)|int), 100]|min if w_quota > 0 else 0 %}
+    {% set w_over  = w_used > w_quota %}
+
+    <div class="usage-card" style="background:{% if w_over %}#fef2f2{% else %}#eff6ff{% endif %};
+         border-color:{% if w_over %}#fecaca{% else %}#bfdbfe{% endif %}">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+        <div style="width:36px;height:36px;border-radius:10px;background:{% if w_over %}#fee2e2{% else %}#dbeafe{% endif %};
+             display:grid;place-items:center">
+          <i class="bi bi-droplet-fill" style="color:{% if w_over %}#dc2626{% else %}#2563eb{% endif %};font-size:17px"></i>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:{% if w_over %}#7f1d1d{% else %}#1e3a8a{% endif %}">Nước — Phòng {{ room.code }}</div>
+          <div style="font-size:11.5px;color:{% if w_over %}#991b1b{% else %}#1d4ed8{% endif %}">Hạn mức miễn phí: {{ w_quota }} m³ / tháng</div>
+        </div>
+        {% if w_over %}
+        <span style="margin-left:auto;font-size:11px;font-weight:700;background:#dc2626;color:#fff;
+               padding:2px 9px;border-radius:999px">Vượt mức</span>
+        {% else %}
+        <span style="margin-left:auto;font-size:11px;font-weight:700;background:#16a34a;color:#fff;
+               padding:2px 9px;border-radius:999px">Trong mức</span>
+        {% endif %}
+      </div>
+
+      <div style="font-size:28px;font-weight:900;color:{% if w_over %}#dc2626{% else %}var(--navy){% endif %};margin:8px 0 0">
+        {{ w_used }} <span style="font-size:14px;font-weight:600">m³</span>
+        <span style="font-size:13px;font-weight:500;color:var(--muted)"> / {{ w_quota }} m³</span>
+      </div>
+
+      <div class="usage-bar-track">
+        <div class="usage-bar-fill" style="width:{{ w_pct }}%;background:{% if w_over %}#ef4444{% else %}#3b82f6{% endif %}"></div>
+      </div>
+      <div class="usage-label" style="color:{% if w_over %}#991b1b{% else %}#1d4ed8{% endif %}">
+        <span>{{ w_pct }}% hạn mức</span>
+        <span>Còn lại: {{ [w_quota - w_used, 0]|max }} m³</span>
+      </div>
+
+      {% if wb %}
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid {% if w_over %}#fecaca{% else %}#bfdbfe{% endif %};
+           font-size:13px;font-weight:700;color:{% if w_over %}#dc2626{% else %}var(--navy){% endif %}">
+        Phải trả:
+        {% if wb.amount_due == 0 %}
+          <span style="color:#16a34a">Miễn phí ✓</span>
+        {% else %}
+          ₫{{ "{:,}".format(wb.amount_due) }}
+        {% endif %}
+      </div>
+      {% else %}
+      <div style="margin-top:10px;font-size:12px;color:var(--muted)">Chưa có dữ liệu tháng này</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% else %}
+<div class="card-soft">Chưa được phân phòng.</div>
+{% endif %}
+{% endblock %}

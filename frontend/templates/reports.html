@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block page_title %}Báo hỏng{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="card-soft">
+      <div class="card-title">Gửi báo hỏng mới</div>
+      <form method="post">
+        <div class="mb-3"><label class="form-label">Tiêu đề</label>
+          <input name="title" class="form-control" placeholder="VD: Quạt trần kêu to" required></div>
+        <div class="mb-3"><label class="form-label">Mô tả chi tiết</label>
+          <textarea name="description" rows="4" class="form-control" placeholder="Mô tả tình trạng..."></textarea></div>
+        <button class="btn btn-primary" style="background:var(--navy);border-color:var(--navy)">
+          <i class="bi bi-send"></i> Gửi báo cáo</button>
+      </form>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card-soft">
+      <div class="card-title">Lịch sử báo hỏng</div>
+      {% for r in reports %}
+        <div class="border-bottom py-3">
+          <div class="d-flex justify-content-between">
+            <div class="fw-semibold">{{ r.title }}</div>
+            <span class="status-pill status-{{ r.status }}">
+              {% if r.status=='pending' %}Chờ xử lý
+              {% elif r.status=='in_progress' %}Đang xử lý
+              {% else %}Đã xử lý{% endif %}
+            </span>
+          </div>
+          <div class="text-muted small mt-1">{{ r.description }}</div>
+          {% if r.admin_reply %}
+            <div class="alert-info-soft mt-2"><b>Phản hồi:</b> {{ r.admin_reply }}</div>
+          {% endif %}
+          <div class="text-muted small mt-2">{{ r.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
+        </div>
+      {% else %}
+        <div class="text-muted">Chưa có báo cáo nào.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

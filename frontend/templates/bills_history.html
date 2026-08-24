@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Lịch sử hóa đơn{% endblock %}
+{% block page_title %}Lịch sử hóa đơn{% endblock %}
+
+{% block content %}
+
+<div class="card-soft" style="padding:16px 20px; margin-bottom:16px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div>
+      <h5 style="margin:0;">Tất cả hóa đơn – Phòng {{ room.code }}</h5>
+    </div>
+    <form method="get" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <select name="month" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);font-size:13px;background:#fff;">
+        <option value="">— Tháng —</option>
+        {% for m in available_months %}
+          <option value="{{ m }}" {% if selected_month == m|int %}selected{% endif %}>
+            Tháng {{ m }}
+          </option>
+        {% endfor %}
+      </select>
+      <select name="year" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);font-size:13px;background:#fff;">
+        <option value="">— Năm —</option>
+        {% for y in available_years %}
+          <option value="{{ y }}" {% if selected_year == y|int %}selected{% endif %}>
+            {{ y }}
+          </option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-sm" style="background:var(--navy);color:#fff;border:none;border-radius:6px;padding:4px 14px;font-weight:600;">Tìm</button>
+    </form>
+  </div>
+</div>
+
+<div class="card-soft" style="padding:0;overflow:hidden;">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;background:#f6f8fc;border-bottom:1px solid var(--border);padding:10px 14px;">Kỳ</th>
+          <th style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;background:#f6f8fc;border-bottom:1px solid var(--border);padding:10px 14px;">Loại</th>
+          <th style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;background:#f6f8fc;border-bottom:1px solid var(--border);padding:10px 14px;">Sử dụng</th>
+          <th style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;background:#f6f8fc;border-bottom:1px solid var(--border);padding:10px 14px;">Hạn mức</th>
+          <th style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;background:#f6f8fc;border-bottom:1px solid var(--border);padding:10px 14px;">Phải trả</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in bills %}
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;">{{ b.period }}</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;">
+            {{ 'Điện' if b.bill_type == 'electric' else 'Nước' }}
+          </td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;">
+            {{ b.usage_value|int }}
+            {% if b.bill_type == 'electric' %}kWh{% else %}m³{% endif %}
+          </td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;">{{ b.quota|int }}</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;">
+            {% if b.amount_due == 0 %}
+              <span class="text-success">Miễn phí</span>
+            {% else %}
+              ₫{{ "{:,}".format(b.amount_due) }}
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-center text-muted" style="padding:20px;">Không có hóa đơn cho kỳ đã chọn.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

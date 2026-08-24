@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}Học bổng — KTX Portal{% endblock %}
+{% block page_title %}Học bổng{% endblock %}
+{% block content %}
+
+{% set month_display = period[5:7] + '/' + period[:4] if period else '' %}
+{% set gross = student.scholarship_amt %}
+
+<style>
+.schol-hero {
+  background: linear-gradient(135deg, #0f1b3d 0%, #1e3a8a 60%, #2563eb 100%);
+  border-radius: 16px;
+  padding: 28px 32px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.schol-hero .name { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+.schol-hero .sub  { font-size: 13px; opacity: .75; }
+.schol-hero .pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,.15); padding: 5px 14px;
+  border-radius: 999px; font-size: 12.5px; font-weight: 600;
+  margin-top: 10px;
+}
+.gross-amt  { font-size: 13px; opacity: .8; text-align: right; }
+.gross-val  { font-size: 32px; font-weight: 800; color: #ffd66b; line-height: 1.1; }
+
+/* Calculation card */
+.calc-card {
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.calc-header {
+  background: #f6f8fc;
+  padding: 14px 22px;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--navy);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.calc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 22px;
+  border-bottom: 1px solid #f0f2f7;
+  font-size: 13.5px;
+}
+.calc-row:last-child { border-bottom: none; }
+.calc-row .lbl { display: flex; align-items: center; gap: 10px; color: var(--navy); }
+.calc-row .lbl i { font-size: 16px; width: 20px; text-align: center; }
+.calc-row .amt { font-weight: 700; font-size: 14px; }
+.calc-row.deduct .amt { color: #dc2626; }
+.calc-row.credit .amt { color: #16a34a; }
+.calc-row.total-row {
+  background: #f0fdf4;
+  border-top: 2px solid #bbf7d0;
+  padding: 18px 22px;
+}
+.calc-row.total-row .lbl { font-weight: 800; font-size: 15px; }
+.calc-row.total-row .amt { font-size: 20px; color: #16a34a; font-weight: 800; }
+.calc-row.total-row.warning-row { background: #fff7ed; border-top-color: #fed7aa; }
+.calc-row.total-row.warning-row .amt { color: #ea580c; }
+
+/* Usage bar */
+.usage-bar-wrap { margin-top: 6px; }
+.usage-bar-track {
+  height: 6px; border-radius: 999px;
+  background: #e5e7eb; overflow: hidden;
+}
+.usage-bar-fill {
+  height: 100%; border-radius: 999px;
+  transition: width .4s;
+}
+.usage-meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+/* History table */
+.history-card {
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.history-card table { width: 100%; font-size: 13px; }
+.history-card thead th {
+  background: #f6f8fc;
+  padding: 10px 16px;
+  font-size: 11px; font-weight: 700;
+  color: var(--muted); text-transform: uppercase;
+  letter-spacing: .06em; border-bottom: 1px solid var(--border);
+}
+.history-card tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f2f7;
+  vertical-align: middle;
+}
+.history-card tbody tr:last-child td { border-bottom: none; }
+.badge-paid   { background:#e8f7ee;color:#157a3a;border:1px solid #c9ecd5; }
+.badge-unpaid { background:#fff7ed;color:#c2410c;border:1px solid #fed7aa; }
+.badge-status {
+  padding: 3px 10px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 600;
+  display: inline-block;
+}
+</style>
+
+
+<!-- Calculation -->
+<div class="calc-card">
+  <div class="calc-header">
+    <i class="bi bi-calculator"></i>
+    Chi tiết thanh toán tháng {{ month_display }}
+  </div>
+
+  <!-- Gross scholarship -->
+  <div class="calc-row credit">
+    <div class="lbl">
+      <i class="bi bi-cash-coin" style="color:#16a34a"></i>
+      Học bổng sinh hoạt phí
+    </div>
+    <div class="amt">+ ₫{{ "{:,}".format(gross) }}</div>
+  </div>
+
+  <!-- Deduction row -->
+  <div class="calc-row deduct">
+    <div class="lbl">
+      <i class="bi bi-scissors" style="color:#dc2626"></i>
+      Khấu trừ tiền điện &amp; nước vượt định mức
+      {% if total_due == 0 %}
+        <span style="font-size:11.5px;color:var(--muted);font-weight:400">— Tháng này trong định mức</span>
+      {% else %}
+        <span style="font-size:11.5px;color:var(--muted);font-weight:400">
+          (Điện: ₫{{ "{:,}".format(elec_due) }} + Nước: ₫{{ "{:,}".format(water_due) }})
+        </span>
+      {% endif %}
+    </div>
+    <div class="amt">
+      {% if total_due > 0 %}− ₫{{ "{:,}".format(total_due) }}
+      {% else %}<span style="color:#16a34a">₫0</span>{% endif %}
+    </div>
+  </div>
+
+  <!-- Net payout -->
+  <div class="calc-row total-row {% if net_payout < gross * 0.8 %}warning-row{% endif %}">
+    <div class="lbl">
+      <i class="bi bi-wallet2" style="font-size:18px"></i>
+      Thực nhận tháng {{ month_display }}
+      {% if total_due > 0 %}
+      <span style="font-size:12px;font-weight:400;color:var(--muted);margin-left:8px">
+        (sau khi trừ ₫{{ "{:,}".format(total_due) }} tiền điện nước)
+      </span>
+      {% endif %}
+    </div>
+    <div class="amt">₫{{ "{:,}".format(net_payout) }}</div>
+  </div>
+</div>
+
+<!-- Benefits summary -->
+<div class="calc-card">
+  <div class="calc-header"><i class="bi bi-gift"></i> Quyền lợi học bổng</div>
+  <div class="calc-row">
+    <div class="lbl"><i class="bi bi-house-heart-fill" style="color:#16a34a"></i> Phí phòng ở</div>
+    <div class="amt" style="color:#16a34a">Miễn 100%</div>
+  </div>
+  <div class="calc-row">
+    <div class="lbl"><i class="bi bi-lightning-charge-fill" style="color:#f59e0b"></i> Định mức điện miễn phí</div>
+    <div class="amt" style="color:var(--navy)">{{ room.elec_quota if room else 60 }} kWh / tháng</div>
+  </div>
+  <div class="calc-row">
+    <div class="lbl"><i class="bi bi-droplet-fill" style="color:#3b82f6"></i> Định mức nước miễn phí</div>
+    <div class="amt" style="color:var(--navy)">{{ room.water_quota if room else 10 }} m³ / tháng</div>
+  </div>
+  <div class="calc-row">
+    <div class="lbl"><i class="bi bi-cash-stack" style="color:#7c3aed"></i> Sinh hoạt phí</div>
+    <div class="amt" style="color:var(--navy)">₫{{ "{:,}".format(gross) }} / tháng</div>
+  </div>
+</div>
+
+{% endblock %}

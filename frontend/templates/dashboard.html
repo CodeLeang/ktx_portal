@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Trang chủ — KTX Portal{% endblock %}
+{% block page_title %}Quản lý Ký túc xá{% endblock %}
+
+{% block content %}
+{% set elec = bills.get('electric') %}
+{% set wat = bills.get('water') %}
+
+<section class="hero">
+  <div>
+    <div class="greeting">Chào mừng trở lại 👋</div>
+    <h2>{{ student.full_name }}</h2>
+    <span class="pill"><i class="bi bi-award-fill" style="color:#ffd66b"></i> Sinh viên học bổng · {{ student.semester }}</span>
+  </div>
+  <div class="amount">
+    <div class="label">Học bổng tháng này</div>
+    <div class="value">
+      {% if total_bills_due > 0 %}
+        ₫{{ "{:,}".format(net_scholarship) }}
+      {% else %}
+        ₫{{ "{:,}".format(student.scholarship_amt) }}
+      {% endif %}
+    </div>
+    <div class="sub">
+      {% if total_bills_due > 0 %}
+        <span style="color: #6b7280;">
+          Hóa đơn tháng này: ₫{{ "{:,}".format(total_bills_due) }}
+          · Còn lại: ₫{{ "{:,}".format(net_scholarship) }}
+        </span>
+      {% else %}
+        <span style="color: #6b7280;">Miễn phòng ở · Điện nước bao cấp</span>
+      {% endif %}
+    </div>
+    <div style="margin-top: 4px;">
+      <a href="{{ url_for('bills.history') }}" class="text-muted small">
+        <i class="bi bi-chevron-right"></i> Xem chi tiết hóa đơn
+      </a>
+    </div>
+  </div>
+</section>
+
+{% if room %}
+<section class="card-soft mb-4 room-assignment-card">
+  <div class="room-assignment-head">
+    <div>
+      <div class="card-title mb-0">Thông tin phòng được phân công</div>
+      <div class="room-assignment-sub">Thông tin chỗ ở hiện tại của bạn trong ký túc xá</div>
+    </div>
+  </div>
+
+  <div class="room-assignment-grid">
+    <div class="room-stat room-stat-primary">
+      <div class="room-stat-label">Phòng</div>
+      <div class="room-stat-value">{{ room.code }}</div>
+    </div>
+    <div class="room-stat">
+      <div class="room-stat-label">Tòa nhà</div>
+      <div class="room-stat-value">{{ room.building }}</div>
+    </div>
+    <div class="room-stat">
+      <div class="room-stat-label">Tầng</div>
+      <div class="room-stat-value">{{ room.floor }}</div>
+    </div>
+    <div class="room-stat">
+      <div class="room-stat-label">Loại phòng</div>
+      <div class="room-stat-value">{{ room.room_type }}</div>
+    </div>
+  </div>
+
+  <div class="room-assignment-note"><i class="bi bi-info-circle"></i> Phòng của bạn được phân công tự động. Vui lòng liên hệ quản lý nếu có vấn đề.</div>
+</section>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-6">
+    <div class="card-soft bill-card h-100">
+      <div class="d-flex gap-3 align-items-center mb-3">
+        <div class="icon-tile icon-electric"><i class="bi bi-lightning-charge-fill"></i></div>
+        <div>
+          <div class="fw-bold" style="color:var(--navy)">Hóa đơn điện</div>
+          <div class="bill-meta">Tháng {{ period.split('-')[1]|int }} · {{ period.split('-')[0] }}</div>
+        </div>
+      </div>
+      {% if elec %}
+        {% set pct = (elec.usage_value / elec.quota * 100)|round(0,'floor') %}
+        <div class="d-flex justify-content-between align-items-end mb-2">
+          <div><span class="bill-usage">{{ elec.usage_value|int }}</span><span class="bill-unit">kWh đã dùng</span></div>
+          <div class="bill-meta">Hạn mức: {{ elec.quota|int }} kWh</div>
+        </div>
+        <div class="progress-thin"><div class="bar-electric" style="width: {{ [pct,100]|min }}%"></div></div>
+        <div class="d-flex justify-content-between mt-3 small">
+          {% if elec.amount_due == 0 %}
+            <span class="text-success"><i class="bi bi-check-circle"></i> Trong hạn mức — Miễn phí</span>
+            <span class="text-muted">₫0 phải trả</span>
+          {% else %}
+            <span class="text-warning"><i class="bi bi-exclamation-triangle"></i> Vượt hạn mức</span>
+            <span class="fw-bold">₫{{ "{:,}".format(elec.amount_due) }} phải trả</span>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="text-muted">Chưa có hóa đơn cho kỳ này.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card-soft bill-card h-100">
+      <div class="d-flex gap-3 align-items-center mb-3">
+        <div class="icon-tile icon-water"><i class="bi bi-droplet-fill"></i></div>
+        <div>
+          <div class="fw-bold" style="color:var(--navy)">Hóa đơn nước</div>
+          <div class="bill-meta">Tháng {{ period.split('-')[1]|int }} · {{ period.split('-')[0] }}</div>
+        </div>
+      </div>
+      {% if wat %}
+        {% set pct = (wat.usage_value / wat.quota * 100)|round(0,'floor') %}
+        <div class="d-flex justify-content-between align-items-end mb-2">
+          <div><span class="bill-usage">{{ wat.usage_value|int }}</span><span class="bill-unit">m³ đã dùng</span></div>
+          <div class="bill-meta">Hạn mức: {{ wat.quota|int }} m³</div>
+        </div>
+        <div class="progress-thin"><div class="bar-water" style="width: {{ [pct,100]|min }}%"></div></div>
+        <div class="d-flex justify-content-between mt-3 small">
+          {% if wat.amount_due == 0 %}
+            <span class="text-success"><i class="bi bi-check-circle"></i> Trong hạn mức — Miễn phí</span>
+            <span class="text-muted">₫0 phải trả</span>
+          {% else %}
+            <span class="text-warning"><i class="bi bi-exclamation-triangle"></i> Vượt hạn mức</span>
+            <span class="fw-bold">₫{{ "{:,}".format(wat.amount_due) }} phải trả</span>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="text-muted">Chưa có hóa đơn cho kỳ này.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="card-soft h-100">
+      <div class="card-title">Bạn cùng phòng</div>
+      {% for m in roommates %}
+      <div class="roommate">
+        <div class="person">
+          <div class="avatar-sm">{{ m.full_name|initials }}</div>
+          <div>
+            <div class="fw-semibold">{{ m.full_name }}</div>
+            <div class="text-muted small">{{ m.student_code }}</div>
+          </div>
+        </div>
+        {% if m.id == student.id %}<span class="tag-you">Bạn</span>{% else %}<span class="tag-hb">HB</span>{% endif %}
+      </div>
+      {% else %}
+      <div class="text-muted">Chưa có ai trong phòng.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="row g-3">
+      <div class="col-6"><a href="{{ url_for('reports.reports') }}" class="tile" style="position:relative">
+        {% if new_replies %}
+        <span style="position:absolute;top:10px;right:10px;background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px">{{ new_replies|length }}</span>
+        {% endif %}
+        <div class="tile-icon"><i class="bi bi-tools"></i></div>
+        <h5>Báo hỏng</h5><p>Báo cáo thiết bị hỏng hóc</p></a></div>
+      <div class="col-6"><a href="{{ url_for('bills.history') }}" class="tile">
+        <div class="tile-icon"><i class="bi bi-receipt"></i></div>
+        <h5>Lịch sử hóa đơn</h5><p>Xem hóa đơn các tháng trước</p></a></div>
+      <div class="col-6"><a href="{{ url_for('scholarship.scholarship') }}" class="tile">
+        <div class="tile-icon"><i class="bi bi-award"></i></div>
+        <h5>Học bổng</h5><p>Chi tiết học bổng kỳ này</p></a></div>
+      <div class="col-6"><a href="{{ url_for('rooms.roommates') }}" class="tile">
+        <div class="tile-icon"><i class="bi bi-people-fill"></i></div>
+        <h5>Bạn cùng phòng</h5><p>Xem danh sách bạn cùng phòng</p></a></div>
+      <div class="col-6"><a href="{{ url_for('main.profile') }}" class="tile">
+        <div class="tile-icon"><i class="bi bi-person-vcard"></i></div>
+        <h5>Hồ sơ</h5><p>Cập nhật thông tin cá nhân</p></a></div>
+      <div class="col-6"><a href="{{ url_for('main.rules') }}" class="tile">
+        <div class="tile-icon"><i class="bi bi-book"></i></div>
+        <h5>Nội quy</h5><p>Quy định ký túc xá</p></a></div>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="card-soft">Bạn chưa được phân phòng. Vui lòng liên hệ quản lý.</div>
+{% endif %}
+{% endblock %}

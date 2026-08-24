@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KTX Portal - Đăng nhập</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet" />
+  <style>
+    :root {
+      --navy: #0b1f3a;
+      --navy-2: #14315a;
+      --gold: #f5c451;
+      --bg-light: #f8fafc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      min-height: 100vh;
+      color: #fff;
+      background-color: var(--navy);
+    }
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      background:
+        linear-gradient(135deg, rgba(11,31,58,.78), rgba(20,49,90,.65)),
+        url('{{ url_for("static", filename="image/IMG_3955 2.jpg") }}') center/cover no-repeat;
+      display: flex;
+      flex-direction: column;
+    }
+    .top-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 40px;
+      background: rgba(255,255,255,0.06);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .brand {
+      display: flex; align-items: center; gap: 12px;
+      font-size: 1.4rem; font-weight: 700; letter-spacing: .5px;
+    }
+    .brand i { color: var(--gold); font-size: 1.8rem; }
+    .btn-login-top {
+      background: var(--gold);
+      color: var(--navy);
+      border: none;
+      padding: 10px 28px;
+      border-radius: 30px;
+      font-weight: 600;
+      transition: .25s;
+    }
+    .btn-login-top:hover { background: #ffd76b; transform: translateY(-2px); }
+    .hero-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .hero-body h1 {
+      font-size: clamp(2.2rem, 5vw, 3.8rem);
+      font-weight: 800;
+      margin-bottom: 1rem;
+      text-shadow: 0 4px 20px rgba(0,0,0,.4);
+    }
+    .hero-body p {
+      max-width: 620px;
+      font-size: 1.15rem;
+      opacity: .9;
+      margin-bottom: 2rem;
+    }
+    .btn-cta {
+      background: var(--gold);
+      color: var(--navy);
+      border: none;
+      padding: 14px 44px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      border-radius: 50px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.3);
+      transition: .25s;
+    }
+    .btn-cta:hover { transform: translateY(-3px); box-shadow: 0 14px 36px rgba(0,0,0,.4); }
+    .hero-footer {
+      padding: 18px 40px;
+      background: rgba(0,0,0,.25);
+      text-align: center;
+      font-size: .9rem;
+      opacity: .85;
+    }
+    
+    /* MODAL BASICS FOR DESKTOP - COMPACT UPGRADES */
+    .modal-dialog {
+      max-width: 380px; /* Limits the container width on desktop */
+      margin: 1.75rem auto;
+    }
+    .modal-content {
+      border: none;
+      border-radius: 16px;
+      overflow: hidden;
+      color: #1a1a1a;
+      box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+    }
+    .modal-header {
+      background: var(--navy);
+      color: #fff;
+      border: none;
+      padding: 1rem 1.25rem; /* Reduced header padding */
+    }
+    .modal-header .btn-close { filter: invert(1); }
+    .form-label { font-weight: 600; color: #333; font-size: .85rem; }
+    
+    /* Tightened fields for the login box */
+    .modal-content .form-control {
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.9rem;
+      border: 1.5px solid #e3e3e3;
+    }
+    .modal-content .mb-3 {
+      margin-bottom: 0.85rem !important; /* Shorter spacing between input groups */
+    }
+    .form-control:focus {
+      border-color: var(--navy-2);
+      box-shadow: 0 0 0 3px rgba(20,49,90,.15);
+    }
+    .btn-submit {
+      background: var(--navy);
+      color: #fff;
+      border: none;
+      padding: 10px;
+      border-radius: 8px;
+      font-weight: 600;
+      width: 100%;
+      transition: .2s;
+    }
+    .btn-submit:hover { background: var(--navy-2); color: #fff; }
+    
+    /* CAPTCHA ROW FLEXBOX ARCHITECTURE */
+    .captcha-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+    }
+    .captcha-box .form-control {
+      flex: 1;
+      min-width: 0;
+    }
+    .captcha-value {
+      flex-shrink: 0;
+      width: 100px;
+      text-align: center;
+      padding: 8px 0;
+      border-radius: 8px;
+      border: 1.5px dashed #b5c4d8;
+      background: #f6f9ff;
+      color: #1d4f91;
+      letter-spacing: 2px;
+      font-weight: 700;
+      user-select: none;
+      font-size: 0.9rem;
+    }
+    .btn-refresh-captcha {
+      flex-shrink: 0;
+      height: 39px;
+      width: 39px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+    }
+
+    .help-link {
+      color: #176bd8;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .help-link:hover { text-decoration: underline; }
+    .forgot-panel {
+      margin-top: 10px;
+      background: #f0f4ff;
+      border: 1px solid #c7d7f5;
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 13px;
+      color: #1e3a6e;
+    }
+    .forgot-panel .contact-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+      font-weight: 600;
+    }
+    .contact-info {
+      margin-top: 12px;
+      padding-top: 8px;
+      border-top: 1px solid #eee;
+      font-size: .8rem;
+      color: #888;
+      line-height: 1.5;
+    }
+
+    /* EMBEDDED MOBILE APP CONTAINER (HIDDEN BY DEFAULT ON DESKTOP) */
+    .mobile-auth-container {
+      display: none;
+    }
+
+    /* NATIVE MOBILE OVERRIDES & BREAKPOINTS */
+    @media (max-width: 576px) {
+      body {
+        background-color: var(--bg-light);
+        color: #1a1a1a;
+      }
+      .hero {
+        background: none;
+        min-height: auto;
+        display: block;
+      }
+      .top-nav {
+        padding: 14px 16px;
+        background: var(--navy);
+        backdrop-filter: none;
+        border-bottom: none;
+      }
+      .brand { font-size: 1.15rem; }
+      .btn-login-top, .hero-body, .btn-cta, .hero-footer, .modal {
+        display: none !important;
+      }
+      
+      .mobile-auth-container {
+        display: block;
+        padding: 20px 16px;
+        min-height: calc(100vh - 65px);
+        background-color: var(--bg-light);
+      }
+      .mobile-card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 24px 20px;
+        box-shadow: 0 4px 18px rgba(15, 23, 42, 0.05);
+        border: 1px solid #e2e8f0;
+      }
+      /* Fallback handling for form-controls directly under mobile view context */
+      .mobile-card .form-control {
+        border-radius: 10px;
+        padding: 11px 14px;
+        font-size: 1rem;
+      }
+      .mobile-card .captcha-value {
+        width: 110px;
+        padding: 11px 0;
+        font-size: 1rem;
+        border-radius: 10px;
+      }
+      .mobile-card .btn-refresh-captcha {
+        height: 46px;
+        width: 46px;
+        border-radius: 10px;
+      }
+      .mobile-title-block {
+        margin-bottom: 24px;
+        text-align: center;
+      }
+      .mobile-title-block h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--navy);
+        margin-bottom: 6px;
+      }
+      .mobile-title-block p {
+        font-size: 0.9rem;
+        color: #64748b;
+        margin: 0;
+      }
+      .mobile-auth-container .contact-info {
+        text-align: center;
+        border-top: 1px dashed #e2e8f0;
+        margin-top: 24px;
+        color: #94a3b8;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="hero">
+    <nav class="top-nav">
+      <div class="brand">
+        <i class="bi bi-building-fill"></i>
+        <span>KTX Portal</span>
+      </div>
+      <button class="btn btn-login-top" data-bs-toggle="modal" data-bs-target="#authModal">
+        <i class="bi bi-box-arrow-in-right me-1"></i> Đăng nhập
+      </button>
+    </nav>
+
+    <div class="hero-body">
+      <h1>Quản lý KTX</h1>
+      <p>Cổng thông tin ký túc xá dành cho sinh viên học bổng quốc tế — quản lý phòng ở, hóa đơn, hồ sơ và thông báo một cách dễ dàng.</p>
+      <button class="btn btn-cta" data-bs-toggle="modal" data-bs-target="#authModal">
+        Bắt đầu ngay <i class="bi bi-arrow-right ms-2"></i>
+      </button>
+    </div>
+
+    <div class="hero-footer">
+      &copy; 2026 KTX Portal — Hệ thống quản lý ký túc xá
+    </div>
+  </div>
+
+  <div class="mobile-auth-container">
+    <div class="mobile-card">
+      <div class="mobile-title-block">
+        <h2>Tài khoản KTX Portal</h2>
+        <p>Hệ thống quản lý ký túc xá</p>
+      </div>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} py-2 px-3 mb-3" role="alert">
+              <i class="bi bi-exclamation-circle me-1"></i>{{ message }}
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <form method="POST" action="{{ url_for('auth.login') }}">
+        <div class="mb-3">
+          <label class="form-label">Tài khoản (Số hộ chiếu)</label>
+          <input type="text" name="username" class="form-control"
+                 placeholder="Nhập số hộ chiếu" required oninput="checkAdminMobile(this.value)">
+        </div>
+        
+        <div class="mb-3">
+          <label class="form-label">Mật khẩu</label>
+          <div class="input-group">
+            <input id="passwordInputMobile" type="password" name="password"
+                   class="form-control" placeholder="Nhập mật khẩu" required>
+            <button class="btn btn-outline-secondary" type="button"
+                    id="togglePasswordMobile" aria-label="Hiện mật khẩu">
+              <i class="bi bi-eye-slash" id="togglePasswordIconMobile"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Mã xác nhận</label>
+          <div class="captcha-box">
+            <input type="text" name="captcha" class="form-control"
+                   placeholder="Mã xác nhận" required>
+            <div class="captcha-value">{{ captcha_code }}</div>
+            <a class="btn btn-outline-secondary btn-refresh-captcha" href="{{ url_for('auth.login') }}" title="Đổi mã xác nhận">
+              <i class="bi bi-arrow-clockwise"></i>
+            </a>
+          </div>
+        </div>
+
+        <div class="form-check mb-3" id="adminCheckWrapperMobile" style="display:none">
+          <input class="form-check-input" type="checkbox" name="is_admin" id="adminCheckMobile">
+          <label class="form-check-label" for="adminCheckMobile" style="font-weight:600">
+            Đăng nhập với tư cách Quản trị viên
+          </label>
+        </div>
+
+        <button type="submit" class="btn btn-submit mt-2">Đăng nhập</button>
+
+        {% if get_flashed_messages() %}
+        <div style="margin-top:14px; text-align:right">
+          <a href="#" class="help-link" onclick="toggleForgotMobile(event)">
+            <i class="bi bi-question-circle me-1"></i>Quên mật khẩu?
+          </a>
+        </div>
+        <div id="forgot-panel-mobile" class="forgot-panel" style="display:none">
+          <div style="font-weight:700;margin-bottom:6px">
+            <i class="bi bi-shield-lock me-1"></i>Đặt lại mật khẩu
+          </div>
+          <div style="color:#374151;line-height:1.6">
+            Liên hệ quản lý để được đặt lại mật khẩu. Sau khi đặt lại, bạn có thể đăng nhập và đổi mật khẩu mới trong trang hồ sơ.
+          </div>
+          <div class="contact-row">
+            <i class="bi bi-telephone-fill" style="color:#2563eb"></i>
+            <span>0778177081</span>
+          </div>
+          <div class="contact-row">
+            <i class="bi bi-envelope-fill" style="color:#2563eb"></i>
+            <span>samkol.mleang@gmail.com</span>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="contact-info">
+          <div>Phone: 0778177081</div>
+          <div>Email: samkol.mleang@gmail.com</div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <div class="modal fade" id="authModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-person-circle me-2"></i>Tài khoản KTX Portal</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="p-3">
+          {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              {% for category, message in messages %}
+                <div class="alert alert-{{ category }} py-2 px-3 mb-3" role="alert">
+                  <i class="bi bi-exclamation-circle me-1"></i>{{ message }}
+                </div>
+              {% endfor %}
+            {% endif %}
+          {% endwith %}
+
+          <form method="POST" action="{{ url_for('auth.login') }}">
+            <div class="mb-3">
+              <label class="form-label">Tài khoản (Số hộ chiếu)</label>
+              <input type="text" name="username" id="usernameInput" class="form-control"
+                     placeholder="Nhập số hộ chiếu" required oninput="checkAdmin(this.value)">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Mật khẩu</label>
+              <div class="input-group">
+                <input id="passwordInput" type="password" name="password"
+                       class="form-control" placeholder="Nhập mật khẩu" required>
+                <button class="btn btn-outline-secondary" type="button"
+                        id="togglePassword" aria-label="Hiện mật khẩu">
+                  <i class="bi bi-eye-slash" id="togglePasswordIcon"></i>
+                </button>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Mã xác nhận</label>
+              <div class="captcha-box">
+                <input type="text" name="captcha" class="form-control"
+                       placeholder="Nhập mã xác nhận" required>
+                <div class="captcha-value">{{ captcha_code }}</div>
+                <a class="btn btn-outline-secondary btn-refresh-captcha" href="{{ url_for('auth.login') }}"
+                   title="Đổi mã xác nhận">
+                  <i class="bi bi-arrow-clockwise"></i>
+                </a>
+              </div>
+            </div>
+            <div class="form-check mb-3" id="adminCheckWrapper" style="display:none">
+              <input class="form-check-input" type="checkbox" name="is_admin" id="adminCheck">
+              <label class="form-check-label" for="adminCheck" style="font-weight:600">
+                Đăng nhập với tư cách Quản trị viên
+              </label>
+            </div>
+
+            <button type="submit" class="btn btn-submit">Đăng nhập</button>
+
+            {% if get_flashed_messages() %}
+            <div style="margin-top:12px;text-align:right">
+              <a href="#" class="help-link" onclick="toggleForgot(event)">
+                <i class="bi bi-question-circle me-1"></i>Quên mật khẩu?
+              </a>
+            </div>
+            <div id="forgot-panel" class="forgot-panel" style="display:none">
+              <div style="font-weight:700;margin-bottom:6px">
+                <i class="bi bi-shield-lock me-1"></i>Đặt lại mật khẩu
+              </div>
+              <div style="color:#374151;line-height:1.6">
+                Liên hệ quản lý để được đặt lại mật khẩu. Sau khi đặt lại, bạn có thể đăng nhập và đổi mật khẩu mới trong trang hồ sơ.
+              </div>
+              <div class="contact-row">
+                <i class="bi bi-telephone-fill" style="color:#2563eb"></i>
+                <span>0778177081</span>
+              </div>
+              <div class="contact-row">
+                <i class="bi bi-envelope-fill" style="color:#2563eb"></i>
+                <span>samkol.mleang@gmail.com</span>
+              </div>
+            </div>
+            {% endif %}
+
+            <div class="contact-info">
+              <div>Phone: 0778177081</div>
+              <div>Email: samkol.mleang@gmail.com</div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      var hasError = {{ 'true' if get_flashed_messages() else 'false' }};
+      if (hasError && window.innerWidth > 576) {
+        new bootstrap.Modal(document.getElementById('authModal')).show();
+      }
+
+      setupPasswordToggle('passwordInput', 'togglePassword', 'togglePasswordIcon');
+      setupPasswordToggle('passwordInputMobile', 'togglePasswordMobile', 'togglePasswordIconMobile');
+    });
+
+    function setupPasswordToggle(inputID, btnID, iconID) {
+      const pwd  = document.getElementById(inputID);
+      const btn  = document.getElementById(btnID);
+      const icon = document.getElementById(iconID);
+      if (!pwd || !btn || !icon) return;
+      
+      btn.addEventListener('click', function() {
+        if (pwd.type === 'password') {
+          pwd.type = 'text';
+          icon.classList.replace('bi-eye-slash', 'bi-eye');
+          btn.setAttribute('aria-label', 'Ẩn mật khẩu');
+        } else {
+          pwd.type = 'password';
+          icon.classList.replace('bi-eye', 'bi-eye-slash');
+          btn.setAttribute('aria-label', 'Hiện mật khẩu');
+        }
+      });
+    }
+
+    function toggleForgot(e) {
+      e.preventDefault();
+      var p = document.getElementById('forgot-panel');
+      p.style.display = p.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function toggleForgotMobile(e) {
+      e.preventDefault();
+      var p = document.getElementById('forgot-panel-mobile');
+      p.style.display = p.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function checkAdmin(val) {
+      var w = document.getElementById('adminCheckWrapper');
+      var c = document.getElementById('adminCheck');
+      if (val.trim().toLowerCase() === 'admin') {
+        w.style.display = 'block';
+      } else {
+        w.style.display = 'none';
+        c.checked = false;
+      }
+    }
+
+    function checkAdminMobile(val) {
+      var w = document.getElementById('adminCheckWrapperMobile');
+      var c = document.getElementById('adminCheckMobile');
+      if (val.trim().toLowerCase() === 'admin') {
+        w.style.display = 'block';
+      } else {
+        w.style.display = 'none';
+        c.checked = false;
+      }
+    }
+  </script>
+</body>
+</html>
