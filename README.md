@@ -148,10 +148,6 @@ Easiest free options:
 
 ---
 
-## 6. Tips for your defense (Q&A)
-
-- *"Why Flask?"* → lightweight, easy to read, every line is yours, no magic.
-- *"Why PostgreSQL?"* → strong constraints, foreign keys, good for relational data like rooms↔students↔bills.
 - *"How do you handle login?"* → password hashing with `werkzeug.security`, session cookies, `@login_required` decorator (see `backend/app/auth.py`).
 - *"How do you prevent SQL injection?"* → all queries use parameterized `%s` placeholders (psycopg2), never string concatenation.
 - *"How would you scale it?"* → add caching, switch sessions to Redis, deploy behind gunicorn + nginx.
