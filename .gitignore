@@ -5,3 +5,5 @@ venv/
 .venv/
 .vscode/
 .DS_Store
+static/uploads/avatars/*
+!static/uploads/avatars/.gitkeep
